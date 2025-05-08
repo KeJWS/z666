@@ -206,6 +206,6 @@ def print_weapon_stat_table():
     console.print(table)
 
 if __name__ == "__main__":
-    generate_equipment_csv("z666/weapons.toml", "z666/weapons.csv")
+    generate_equipment_csv("weapons.toml", "weapons.csv")
     print("\n")
     print_weapon_stat_table()

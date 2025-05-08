@@ -160,17 +160,23 @@ ENEMY_FIELDS = ['id', 'name', 'exp', 'gold',
                 Param.Max_HP, Param.Max_MP, Param.Attack, Param.Defense,
                 Param.M_Attack, Param.M_Defense, Param.Agility, Param.Luck]
 
-WEAPONS = load_equipment_from_csv("z666/DatabaseWeapons.csv", Weapon, WEAPON_FIELDS, True, skip_fields=["name", "description"])
-ARMORS = load_equipment_from_csv("z666/DatabaseArmors.csv", Armor, ARMOR_FIELDS, True, skip_fields=["name", "description"])
-ENEMIES = load_equipment_from_csv("z666/DatabaseEnemies.csv", Enemy, ENEMY_FIELDS, True, skip_fields=["name"])
+WEAPONS = load_equipment_from_csv("DatabaseWeapons.csv", Weapon, WEAPON_FIELDS, True, skip_fields=["name", "description"])
+ARMORS = load_equipment_from_csv("DatabaseArmors.csv", Armor, ARMOR_FIELDS, True, skip_fields=["name", "description"])
+ENEMIES = load_equipment_from_csv("DatabaseEnemies.csv", Enemy, ENEMY_FIELDS, True, skip_fields=["name"])
 
 if __name__ == "__main__":
-    # export_and_preview(WEAPONS, "z666/weapon_output.ini", label="武器")
-    # export_and_preview(ARMORS, "z666/armor_output.ini", label="防具")
-    # export_and_preview(ENEMIES, "z666/enemy_output.ini", label="敌人")
+    from pprint import pprint
 
-    print(WEAPONS['2'])
-    print()
-    print("\n".join(f"{k}: {v}" for k, v in vars(WEAPONS['2']).items()))
-    print()
-    dump_weapons_json(WEAPONS, "z666/weapons_dump.json")
+    # export_and_preview(WEAPONS, "weapon_output.ini", label="武器")
+    # export_and_preview(ARMORS, "armor_output.ini", label="防具")
+    # export_and_preview(ENEMIES, "enemy_output.ini", label="敌人")
+
+    print(WEAPONS['2'].__dict__)
+    print("\n")
+    pprint(vars(WEAPONS['3']))
+    print("\n")
+    print(WEAPONS['4'])
+    print("\n")
+    print("\n".join(f"{k}: {v}" for k, v in vars(WEAPONS['5']).items()))
+    print("\n")
+    dump_weapons_json(WEAPONS, "weapons_dump.json")

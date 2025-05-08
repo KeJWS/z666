@@ -2,7 +2,7 @@ import json
 from tomlkit import document, table, dumps
 
 # 读取 JSON 数据
-with open('z666/weapons_dump.json', 'r', encoding='utf-8') as f:
+with open('weapons_dump.json', 'r', encoding='utf-8') as f:
     data = json.load(f)
 
 # 创建 TOML 文档对象
@@ -34,5 +34,5 @@ for item in data.values():
 doc['weapon'] = weapons
 
 # 输出到文件
-with open("z666/weapons_output.toml", "w", encoding="utf-8") as f:
+with open("weapons_output.toml", "w", encoding="utf-8") as f:
     f.write(dumps(doc))

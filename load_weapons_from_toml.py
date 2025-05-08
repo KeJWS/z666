@@ -77,7 +77,7 @@ def load_weapons_from_toml(path):
     return weapons_dict
 
 if __name__ == "__main__":
-    weapons = load_weapons_from_toml("z666/weapons_output.toml")
+    weapons = load_weapons_from_toml("weapons_output.toml")
     print(weapons[2])
-    print()
+    print("\n")
     print("\n".join(f"{k}: {v}" for k, v in vars(weapons[2]).items()))
