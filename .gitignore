@@ -1,0 +1,9 @@
+.vscode/settings.json
+armor_output.ini
+enemy_output.ini
+weapon_output.ini
+DatabaseArmors.csv
+DatabaseEnemies.csv
+DatabaseWeapons.csv
+weapons_dump.json
+weapons_output.toml
