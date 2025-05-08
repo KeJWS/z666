@@ -361,6 +361,14 @@ class Character:
         # Sort inventory for consistency (optional)
         self.inventory.sort(key=lambda x: x.name)
 
+    def remove_item_from_inventory(self, item_to_remove, quantity=1):
+        removed = 0
+        for i in range(len(self.inventory) - 1, -1, -1):  # 从后往前删更安全
+            if self.inventory[i] is item_to_remove:
+                del self.inventory[i]
+                removed += 1
+                if removed >= quantity:
+                    break
 
 # 敌人类
 class Enemy(Character):
@@ -441,6 +449,8 @@ class RPGGame:
         self.all_shops = []
 
         self.scroll_offset_message_log = 0  # 当前滚动偏移量
+
+        self.shop_tab = "buy"  # 当前商店页签（buy 或 sell）
 
         self.load_game_data()
         self.setup_initial_player_conditions()
@@ -1260,25 +1270,61 @@ class RPGGame:
     def draw_shop_screen(self):
         """绘制商店界面"""
         shop = self.all_shops[self.current_shop_idx]
-        goods = shop.get_all_sellable_goods() # 可售物品列表（物品 + 装备）
 
-        def handle_buy_item(item):
-            if self.gold >= item.price:
-                self.gold -= item.price
-                self.player.add_item_to_inventory(item)
-                self.add_message(f"购买了 {item.name}。")
-            else:
-                self.add_message("金币不足！")
+        # 页签按钮
+        tab_x = SCREEN_WIDTH // 2 - 130
 
-        # 当前版本仅支持“购买”，后续可添加“出售”分页
-        self._draw_generic_list_menu(
-            f"{shop.name}（金币: {self.gold}）",
-            goods,
-            handle_buy_item,
-            GameState.EXPLORING,
-            self.item_page_shop, "item_page_shop", self.items_per_page,
-            item_price_func=lambda item: item.price
-        )
+        # 获取物品列表和处理逻辑
+        if self.shop_tab == "buy":
+            goods = shop.get_all_sellable_goods()
+
+            def handle_buy_item(item):
+                if self.gold >= item.price:
+                    self.gold -= item.price
+                    self.player.add_item_to_inventory(item)
+                    self.add_message(f"购买了 {item.name}。")
+                else:
+                    self.add_message("金币不足！")
+
+            self._draw_generic_list_menu(
+                f"{shop.name} (金币: {self.gold})",
+                goods,
+                handle_buy_item,
+                GameState.EXPLORING,
+                self.item_page_shop, "item_page_shop", self.items_per_page,
+                item_price_func=lambda item: item.price
+            )
+
+            if self.draw_button("出售", tab_x + 140, 60, 100, 30,
+                            BTN_ORANGE if self.shop_tab == "sell" else BTN_GRAY,
+                            BTN_ORANGE_HOVER if self.shop_tab == "sell" else BTN_GRAY_LIGHT):
+                if self.clicked_this_frame:
+                    self.shop_tab = "sell"
+
+        elif self.shop_tab == "sell":
+            sellable = [item for item in self.player.inventory]
+            sell_price = lambda item: item.price // 2 if hasattr(item, "price") else 1
+
+            def handle_sell_item(item):
+                price = sell_price(item)
+                self.gold += price
+                self.player.remove_item_from_inventory(item)
+                self.add_message(f"售出 {item.name}，获得 {price} 金币。")
+
+            self._draw_generic_list_menu(
+                f"出售物品 (金币: {self.gold})",
+                sellable,
+                handle_sell_item,
+                GameState.EXPLORING,
+                self.item_page_shop, "item_page_shop", self.items_per_page,
+                item_price_func=sell_price
+            )
+
+            if self.draw_button("购买", tab_x, 60, 100, 30,
+                            BTN_GREEN if self.shop_tab == "buy" else BTN_GRAY,
+                            BTN_GREEN_HOVER if self.shop_tab == "buy" else BTN_GRAY_LIGHT):
+                if self.clicked_this_frame:
+                    self.shop_tab = "buy"
 
     def draw_equipment_screen(self):
         """绘制装备界面"""
