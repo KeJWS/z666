@@ -450,6 +450,9 @@ class RPGGame:
         self.all_locations = []
         self.all_shops = []
 
+        self.message_log = []  # 消息内容列表
+        self.scroll_offset_message_log = 0  # 当前滚动偏移量
+
         self.load_game_data()
         self.setup_initial_player_conditions()
 
@@ -461,8 +464,8 @@ class RPGGame:
 
     def add_message(self, message):
         self.message_log.append(message)
-        if len(self.message_log) > 20: # Keep log history reasonable
-            self.message_log.pop(0)
+        if len(self.message_log) > 100:
+            self.message_log.pop(0) # 限制日志总长度
 
     def load_game_data(self):
         self.all_skills = ALL_SKILLS
@@ -507,16 +510,16 @@ class RPGGame:
         self.player = Character("冒险者", 100, 100, 30, 30, 10, 5, level=1, exp=0, game_skills_ref=self.all_skills)
         self.player.skills.append(self.all_skills[0]) # Start with "普通攻击"
         self.player.skills.append(self.all_skills[1]) # Start with "强力一击"
-        
+
         # Starting inventory
         self.player.add_item_to_inventory(self.all_items[0], quantity=3) # 3 small heal potions
         self.player.add_item_to_inventory(self.all_items[2], quantity=1) # 1 small mana potion
-        
+
         # Starting equipment
         start_weapon = self.all_equipments[0] #新手剑
         self.player.add_item_to_inventory(start_weapon)
         msg_equip = self.player.equip(start_weapon)[1]
-        
+
         self.gold = 100
         self.current_location_idx = 0
         self.message_log = ["欢迎来到 RPG 文字冒险游戏!", msg_equip, "你的旅程从这里开始。"]
@@ -891,19 +894,63 @@ class RPGGame:
 
         return is_hovered
 
+    def mouse_in_rect(self, x, y, width, height):
+        mx, my = pygame.mouse.get_pos()
+        return x <= mx <= x + width and y <= my <= y + height
+
     def draw_message_log(self, x, y, width, height):
+        # 背景与边框
         pygame.draw.rect(screen, LIGHT_PANEL, (x, y, width, height))
-        pygame.draw.rect(screen, TEXT_LIGHT, (x, y, width, height), 1) # Border
+        pygame.draw.rect(screen, TEXT_LIGHT, (x, y, width, height), 1)
 
-        start_idx = max(0, len(self.message_log) - self.log_max_lines)
-        log_to_display = self.message_log[start_idx:]
+        padding = 5
+        line_height = font_small.get_linesize()
+        max_lines = (height - padding * 2) // line_height
+        total_lines = len(self.message_log)
 
-        current_y = y + 5
+        # 限制滑动范围
+        max_offset = max(0, total_lines - max_lines)
+        self.scroll_offset_message_log = max(0, min(self.scroll_offset_message_log, max_offset))
+
+        # 取出当前要显示的日志行
+        start_idx = self.scroll_offset_message_log
+        end_idx = min(total_lines, start_idx + max_lines)
+        log_to_display = self.message_log[start_idx:end_idx]
+
+        current_y = y + padding
         for message in log_to_display:
-            self.draw_text(message, font_small, TEXT_FAINT, x + 5, current_y, max_width=width-10)
-            current_y += font_small.get_linesize() * (1 + message.count('\n')) # Adjust for wrapped lines
-            if current_y > y + height - font_small.get_linesize():
-                break # Stop if exceeding log box
+            self.draw_text(message, font_small, TEXT_FAINT, x + padding, current_y, max_width=width - 2 * padding)
+            current_y += line_height * (1 + message.count('\n'))
+            if current_y > y + height - line_height:
+                break
+
+        # --- 清除按钮 ---
+        clear_btn_w, clear_btn_h = 50, 24
+        if self.draw_button("清除", x + width - clear_btn_w - 18, y + height - clear_btn_h - 12,
+                            clear_btn_w, clear_btn_h, BTN_RED, BTN_RED_HOVER, font_to_use=font_small):
+            if self.clicked_this_frame:
+                self.message_log.clear()
+                self.scroll_offset_message_log = 0
+
+        # --- 滑动条 ---
+        if total_lines > max_lines:
+            scrollbar_width = 10
+            bar_x = x + width - scrollbar_width - 4
+            bar_y = y + padding
+            bar_height = height - 2 * padding
+            scroll_ratio = max_lines / total_lines
+            scroll_bar_h = max(int(bar_height * scroll_ratio), 20)
+            scroll_bar_y = bar_y + int((self.scroll_offset_message_log / max_offset) * (bar_height - scroll_bar_h))
+
+            pygame.draw.rect(screen, (80, 80, 80), (bar_x, bar_y, scrollbar_width, bar_height))  # 背景槽
+            pygame.draw.rect(screen, (180, 180, 180), (bar_x, scroll_bar_y, scrollbar_width, scroll_bar_h))  # 滑块
+
+            # 鼠标滚轮事件
+            if self.mouse_in_rect(x, y, width, height):
+                if self.scroll_up:
+                    self.scroll_offset_message_log = max(0, self.scroll_offset_message_log - 1)
+                elif self.scroll_down:
+                    self.scroll_offset_message_log = min(max_offset, self.scroll_offset_message_log + 1)
 
     def draw_player_status_bar(self, x, y, width, height):
         pygame.draw.rect(screen, LIGHT_PANEL, (x, y, width, height))
@@ -934,8 +981,8 @@ class RPGGame:
 
         # 地点信息框
         pygame.draw.rect(screen, LIGHT_PANEL, (SCREEN_WIDTH - 330, 10, 320, 120))
-        self.draw_text(f"当前位置: {current_loc['name']}", font_medium, TEXT_LIGHT, SCREEN_WIDTH - 320, 30)
-        self.draw_text(current_loc['description'], font_small, TEXT_FAINT, SCREEN_WIDTH - 320, 60, max_width=310)
+        self.draw_text(f"当前位置: {current_loc['name']}", font_medium, TEXT_LIGHT, SCREEN_WIDTH - 320, 20)
+        self.draw_text(current_loc['description'], font_small, TEXT_FAINT, SCREEN_WIDTH - 320, 50, max_width=310)
 
         # 消息日志
         log_height = 200
@@ -984,7 +1031,7 @@ class RPGGame:
 
         if current_loc.get("can_rest", False):
             button_y += button_height + button_spacing
-            if self.draw_button("休息 -20$", button_x_start, button_y, button_width, button_height, BTN_PURPLE, BTN_PURPLE_HOVER):
+            if self.draw_button("休息-20$", button_x_start, button_y, button_width, button_height, BTN_PURPLE, BTN_PURPLE_HOVER):
                 if self.clicked_this_frame:
                     if self.gold >= 20:
                         self.gold -= 20
@@ -1041,7 +1088,8 @@ class RPGGame:
                 y = base_y + row * v_spacing
 
                 # 显示物品名 + 数量 + 价格
-                item_text = f"{item.name} ×{getattr(item, '_quantity', 1)}"
+                item_count = getattr(item, '_quantity', 1)
+                item_text = f"{item.name} x{item_count}" if item_count > 1 else f"{item.name}"
                 if item_price_func:
                     item_text += f" ({item_price_func(item)}G)"
 
@@ -1127,7 +1175,7 @@ class RPGGame:
             # Display enemy status effects
             y_offset_status = 95
             for effect in self.current_enemy.status_effects[:2]: # Show first 2
-                self.draw_text(f"{effect.name}({effect.turns_remaining})", font_small, PURPLE, SCREEN_WIDTH // 2 + 20, y_offset_status)
+                self.draw_text(f"{effect.name}({effect.turns_remaining})", font_small, BTN_PURPLE, SCREEN_WIDTH // 2 + 20, y_offset_status)
                 y_offset_status += 15
 
 
@@ -1140,7 +1188,7 @@ class RPGGame:
         self.draw_text(turn_text, font_medium, TEXT_LIGHT, SCREEN_WIDTH // 2, 140, "center")
 
         # Action Panel (Player's Turn)
-        action_panel_y = SCREEN_HEIGHT - 280 # Adjusted Y for message log
+        action_panel_y = SCREEN_HEIGHT - 300 # Adjusted Y for message log
         if self.battle_turn == "player" and self.player.is_alive():
             # Skills
             skill_button_x = 20
@@ -1148,16 +1196,16 @@ class RPGGame:
             self.draw_text("技能:", font_medium, TEXT_LIGHT, skill_button_x + 75, skill_button_y - 25, "center")
 
             # Pagination for skills
-            skills_per_page_battle = 4
+            skills_per_page_battle = 3
             start_skill_idx = self.scroll_offset_skills * skills_per_page_battle
             end_skill_idx = start_skill_idx + skills_per_page_battle
             visible_skills = self.player.skills[start_skill_idx:end_skill_idx]
 
             for i, skill in enumerate(visible_skills):
                 actual_skill_idx = start_skill_idx + i
-                skill_text = f"{skill.name} (MP:{skill.mp_cost})"
+                skill_text = f"{skill.name}" + str(f"-MP:{skill.mp_cost}" if skill.mp_cost != 0 else '')
                 color = BTN_GREEN if self.player.mp >= skill.mp_cost else LIGHT_PANEL # Grey out if not enough MP
-                if self.draw_button(skill_text, skill_button_x, skill_button_y + i * 45, 180, 40, color, SHIRONEZUMI if color == BTN_GREEN else LIGHT_PANEL):
+                if self.draw_button(skill_text, skill_button_x, skill_button_y + i * 45, 180, 40, color, BTN_GREEN_HOVER if color == BTN_GREEN else LIGHT_PANEL):
                     if self.clicked_this_frame and self.player.mp >= skill.mp_cost:
                         self.player_action(skill_idx=actual_skill_idx)
 
@@ -1165,19 +1213,19 @@ class RPGGame:
             total_skill_pages = (len(self.player.skills) -1) // skills_per_page_battle + 1
             if total_skill_pages > 1:
                 if self.scroll_offset_skills > 0:
-                    if self.draw_button("↑", skill_button_x + 200, skill_button_y, 40, 40, BLUE, CYAN):
+                    if self.draw_button("↑", skill_button_x + 200, skill_button_y, 40, 40, BTN_BLUE, BTN_BLUE_HOVER):
                         if self.clicked_this_frame: self.scroll_offset_skills -=1
                 if self.scroll_offset_skills < total_skill_pages - 1:
-                     if self.draw_button("↓", skill_button_x + 200, skill_button_y + 45, 40, 40, BLUE, CYAN):
+                     if self.draw_button("↓", skill_button_x + 200, skill_button_y + 45, 40, 40, BTN_BLUE, BTN_BLUE_HOVER):
                         if self.clicked_this_frame: self.scroll_offset_skills +=1
 
 
             # Other Actions (Items, Escape)
             action_button_x = SCREEN_WIDTH - 200
-            if self.draw_button("物品", action_button_x, action_panel_y, 180, 40, BTN_BLUE, SHIRONEZUMI):
+            if self.draw_button("物品", action_button_x, action_panel_y, 180, 40, BTN_BLUE, BTN_BLUE_HOVER):
                 if self.clicked_this_frame: self.state = GameState.INVENTORY # Go to inventory from battle
             
-            if self.draw_button("逃跑", action_button_x, action_panel_y + 45, 180, 40, BTN_ORANGE, SHIRONEZUMI):
+            if self.draw_button("逃跑", action_button_x, action_panel_y + 45, 180, 40, BTN_ORANGE, BTN_ORANGE_HOVER):
                 if self.clicked_this_frame: self.attempt_escape_battle()
 
         elif self.battle_turn == "enemy" and self.current_enemy and self.current_enemy.is_alive():
@@ -1367,12 +1415,21 @@ class RPGGame:
 
         while running:
             self.clicked_this_frame = False # Reset click state
+            self.scroll_up = False
+            self.scroll_down = False
+
             for event in pygame.event.get():
                 if event.type == QUIT:
                     running = False
                 if event.type == MOUSEBUTTONDOWN:
                     if event.button == 1: # Left click
                         self.clicked_this_frame = True
+                if event.type == pygame.MOUSEWHEEL:
+                    if event.y > 0:
+                        self.scroll_up = True
+                    elif event.y < 0:
+                        self.scroll_down = True
+
                 if event.type == KEYDOWN: # Keyboard shortcuts
                     if self.state == GameState.EXPLORING:
                         if event.key == K_i: self.state = GameState.INVENTORY; self.item_page_inv = 0
