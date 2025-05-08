@@ -426,7 +426,7 @@ class RPGGame:
         self.current_location_idx = 0
         self.dialogue_text = []
         self.dialogue_index = 0
-        self.message_log = []
+        self.message_log = []  # 消息内容列表
         self.log_max_lines = 7 # Max lines for message log on screen
         self.gold = 0
         self.battle_turn = "player" # "player" or "enemy"
@@ -450,7 +450,6 @@ class RPGGame:
         self.all_locations = []
         self.all_shops = []
 
-        self.message_log = []  # 消息内容列表
         self.scroll_offset_message_log = 0  # 当前滚动偏移量
 
         self.load_game_data()
@@ -466,6 +465,7 @@ class RPGGame:
         self.message_log.append(message)
         if len(self.message_log) > 100:
             self.message_log.pop(0) # 限制日志总长度
+        self.scroll_offset_message_log = max(0, len(self.message_log))
 
     def load_game_data(self):
         self.all_skills = ALL_SKILLS
@@ -1161,108 +1161,109 @@ class RPGGame:
 
 
     def draw_battle(self):
-        screen.fill(BG_DARK if self.current_enemy else KURO) # Darker red for battle
+        # 根据是否有敌人决定背景颜色
+        screen.fill(BG_DARK if self.current_enemy else KURO)
 
-        # Player and Enemy Status Panels
+        # 玩家状态面板
         if self.player:
             self.draw_player_status_bar(10, 10, SCREEN_WIDTH // 2 - 20, 120)
+
+        # 敌人状态面板
         if self.current_enemy:
             pygame.draw.rect(screen, LIGHT_PANEL, (SCREEN_WIDTH // 2 + 10, 10, SCREEN_WIDTH // 2 - 20, 120))
-            self.draw_text(f"{self.current_enemy.name} | Lvl: {self.current_enemy.level}", font_medium, TEXT_LIGHT, SCREEN_WIDTH // 2 + 20, 20)
-            self.draw_text(f"HP: {self.current_enemy.hp}/{self.current_enemy.max_hp}", font_small, BTN_GREEN if self.current_enemy.hp > self.current_enemy.max_hp * 0.3 else BTN_RED, SCREEN_WIDTH // 2 + 20, 50)
+            self.draw_text(f"{self.current_enemy.name} | Lv.{self.current_enemy.level}", font_medium, TEXT_LIGHT, SCREEN_WIDTH // 2 + 20, 20)
+            self.draw_text(f"HP: {self.current_enemy.hp}/{self.current_enemy.max_hp}", font_small,
+                           BTN_GREEN if self.current_enemy.hp > self.current_enemy.max_hp * 0.3 else BTN_RED,
+                           SCREEN_WIDTH // 2 + 20, 50)
             self.draw_text(f"MP: {self.current_enemy.mp}/{self.current_enemy.max_mp}", font_small, BTN_BLUE, SCREEN_WIDTH // 2 + 220, 50)
             self.draw_text(f"ATK: {self.current_enemy.attack} DEF: {self.current_enemy.defense}", font_small, TEXT_FAINT, SCREEN_WIDTH // 2 + 20, 75)
-            # Display enemy status effects
-            y_offset_status = 95
-            for effect in self.current_enemy.status_effects[:2]: # Show first 2
-                self.draw_text(f"{effect.name}({effect.turns_remaining})", font_small, BTN_PURPLE, SCREEN_WIDTH // 2 + 20, y_offset_status)
-                y_offset_status += 15
 
+            # 显示敌人状态效果（最多2个）
+            y_offset = 95
+            for effect in self.current_enemy.status_effects[:2]:
+                self.draw_text(f"{effect.name}({effect.turns_remaining})", font_small, BTN_PURPLE, SCREEN_WIDTH // 2 + 20, y_offset)
+                y_offset += 15
 
-        # Message Log
-        log_y = SCREEN_HEIGHT - 160
-        self.draw_message_log(10, log_y, SCREEN_WIDTH - 20, 150)
+        # 消息日志区域
+        self.draw_message_log(10, SCREEN_HEIGHT - 160, SCREEN_WIDTH - 20, 150)
 
-        # Battle Turn Indicator
+        # 回合指示
         turn_text = "你的回合！" if self.battle_turn == "player" else f"{self.current_enemy.name} 的回合..."
         self.draw_text(turn_text, font_medium, TEXT_LIGHT, SCREEN_WIDTH // 2, 140, "center")
 
-        # Action Panel (Player's Turn)
-        action_panel_y = SCREEN_HEIGHT - 300 # Adjusted Y for message log
+        # 玩家行动区域（仅限玩家回合）
         if self.battle_turn == "player" and self.player.is_alive():
-            # Skills
-            skill_button_x = 20
-            skill_button_y = action_panel_y
-            self.draw_text("技能:", font_medium, TEXT_LIGHT, skill_button_x + 75, skill_button_y - 25, "center")
+            skill_x, skill_y = 20, SCREEN_HEIGHT - 300
+            self.draw_text("技能:", font_medium, TEXT_LIGHT, skill_x + 75, skill_y - 25, "center")
 
-            # Pagination for skills
-            skills_per_page_battle = 3
-            start_skill_idx = self.scroll_offset_skills * skills_per_page_battle
-            end_skill_idx = start_skill_idx + skills_per_page_battle
-            visible_skills = self.player.skills[start_skill_idx:end_skill_idx]
+            # 技能分页逻辑
+            skills_per_page = 3
+            start = self.scroll_offset_skills * skills_per_page
+            visible_skills = self.player.skills[start:start + skills_per_page]
 
             for i, skill in enumerate(visible_skills):
-                actual_skill_idx = start_skill_idx + i
-                skill_text = f"{skill.name}" + str(f"-MP:{skill.mp_cost}" if skill.mp_cost != 0 else '')
-                color = BTN_GREEN if self.player.mp >= skill.mp_cost else LIGHT_PANEL # Grey out if not enough MP
-                if self.draw_button(skill_text, skill_button_x, skill_button_y + i * 45, 180, 40, color, BTN_GREEN_HOVER if color == BTN_GREEN else LIGHT_PANEL):
+                idx = start + i
+                label = f"{skill.name}" + (f" -MP:{skill.mp_cost}" if skill.mp_cost else '')
+                btn_color = BTN_GREEN if self.player.mp >= skill.mp_cost else LIGHT_PANEL
+                hover_color = BTN_GREEN_HOVER if btn_color == BTN_GREEN else LIGHT_PANEL
+
+                if self.draw_button(label, skill_x, skill_y + i * 45, 180, 40, btn_color, hover_color):
                     if self.clicked_this_frame and self.player.mp >= skill.mp_cost:
-                        self.player_action(skill_idx=actual_skill_idx)
+                        self.player_action(skill_idx=idx)
 
-            # Skill Pagination Buttons
-            total_skill_pages = (len(self.player.skills) -1) // skills_per_page_battle + 1
-            if total_skill_pages > 1:
+            # 技能翻页按钮
+            total_pages = (len(self.player.skills) - 1) // skills_per_page + 1
+            if total_pages > 1:
                 if self.scroll_offset_skills > 0:
-                    if self.draw_button("↑", skill_button_x + 200, skill_button_y, 40, 40, BTN_BLUE, BTN_BLUE_HOVER):
-                        if self.clicked_this_frame: self.scroll_offset_skills -=1
-                if self.scroll_offset_skills < total_skill_pages - 1:
-                     if self.draw_button("↓", skill_button_x + 200, skill_button_y + 45, 40, 40, BTN_BLUE, BTN_BLUE_HOVER):
-                        if self.clicked_this_frame: self.scroll_offset_skills +=1
+                    if self.draw_button("↑", skill_x + 200, skill_y, 40, 40, BTN_BLUE, BTN_BLUE_HOVER):
+                        if self.clicked_this_frame: self.scroll_offset_skills -= 1
+                if self.scroll_offset_skills < total_pages - 1:
+                    if self.draw_button("↓", skill_x + 200, skill_y + 45, 40, 40, BTN_BLUE, BTN_BLUE_HOVER):
+                        if self.clicked_this_frame: self.scroll_offset_skills += 1
 
+            # 其他行动（物品、逃跑）
+            action_x = SCREEN_WIDTH - 200
+            if self.draw_button("物品", action_x, skill_y, 180, 40, BTN_BLUE, BTN_BLUE_HOVER):
+                if self.clicked_this_frame:
+                    self.state = GameState.INVENTORY
 
-            # Other Actions (Items, Escape)
-            action_button_x = SCREEN_WIDTH - 200
-            if self.draw_button("物品", action_button_x, action_panel_y, 180, 40, BTN_BLUE, BTN_BLUE_HOVER):
-                if self.clicked_this_frame: self.state = GameState.INVENTORY # Go to inventory from battle
-            
-            if self.draw_button("逃跑", action_button_x, action_panel_y + 45, 180, 40, BTN_ORANGE, BTN_ORANGE_HOVER):
-                if self.clicked_this_frame: self.attempt_escape_battle()
-
-        elif self.battle_turn == "enemy" and self.current_enemy and self.current_enemy.is_alive():
-            # Enemy action is triggered by timer in run loop or directly
-            pass # UI mostly static during enemy turn, messages update
+            if self.draw_button("逃跑", action_x, skill_y + 45, 180, 40, BTN_ORANGE, BTN_ORANGE_HOVER):
+                if self.clicked_this_frame:
+                    self.attempt_escape_battle()
 
     def draw_battle_reward_screen(self):
-        screen.fill(KURO)
-        self.draw_text("战斗胜利！", font_large, GOLD, SCREEN_WIDTH // 2, 100, "center")
+        # 战斗胜利奖励界面
+        screen.fill(BG_DARK)
+        self.draw_text("战斗胜利！", font_large, BTN_ORANGE, SCREEN_WIDTH // 2, 100, "center")
 
-        y_offset = 180
-        self.draw_text(f"获得经验: {self.battle_rewards['exp']}", font_medium, WHITE, SCREEN_WIDTH // 2, y_offset, "center")
-        y_offset += 40
-        self.draw_text(f"获得金币: {self.battle_rewards['gold']}", font_medium, GOLD, SCREEN_WIDTH // 2, y_offset, "center")
-        y_offset += 40
+        y = 180
+        self.draw_text(f"获得经验: {self.battle_rewards['exp']}", font_medium, SHIRONEZUMI, SCREEN_WIDTH // 2, y, "center")
+        y += 40
+        self.draw_text(f"获得金币: {self.battle_rewards['gold']}", font_medium, BTN_ORANGE, SCREEN_WIDTH // 2, y, "center")
+        y += 40
 
         if self.battle_rewards['items']:
-            self.draw_text("获得物品:", font_medium, WHITE, SCREEN_WIDTH // 2, y_offset, "center")
-            y_offset += 30
+            self.draw_text("获得物品:", font_medium, SHIRONEZUMI, SCREEN_WIDTH // 2, y, "center")
+            y += 30
             for item in self.battle_rewards['items']:
-                self.draw_text(f"- {item.name}", font_small, CYAN, SCREEN_WIDTH // 2, y_offset, "center")
-                y_offset += 25
-        
-        if self.draw_button("继续", SCREEN_WIDTH // 2 - 75, SCREEN_HEIGHT - 100, 150, 50, BLUE, GREEN):
+                self.draw_text(f"- {item.name}", font_small, BTN_CYAN, SCREEN_WIDTH // 2, y, "center")
+                y += 25
+
+        if self.draw_button("继续", SCREEN_WIDTH // 2 - 75, SCREEN_HEIGHT - 100, 150, 50, BTN_BLUE, BTN_BLUE_HOVER):
             if self.clicked_this_frame:
-                self.process_battle_rewards() # This will change state to EXPLORING
+                self.process_battle_rewards()
 
     def draw_game_over(self):
+        # 游戏结束界面
         screen.fill(KURO)
-        self.draw_text("游戏结束", font_large, RED, SCREEN_WIDTH//2, 200, "center")
+        self.draw_text("游戏结束", font_large, BTN_RED, SCREEN_WIDTH // 2, 200, "center")
         if self.player:
-            self.draw_text(f"你的冒险者 {self.player.name} 倒下了。", font_medium, WHITE, SCREEN_WIDTH//2, 250, "center")
-            self.draw_text(f"最终等级: {self.player.level}", font_medium, WHITE, SCREEN_WIDTH//2, 280, "center")
-        
-        if self.draw_button("返回主菜单", SCREEN_WIDTH//2 - 100, 400, 200, 50, BLUE, GOLD):
-            if self.clicked_this_frame: self.state = GameState.MAIN_MENU
+            self.draw_text(f"你 {self.player.name} 倒下了。", font_medium, WHITE, SCREEN_WIDTH // 2, 250, "center")
+            self.draw_text(f"最终等级: {self.player.level}", font_medium, WHITE, SCREEN_WIDTH // 2, 280, "center")
 
+        if self.draw_button("返回主菜单", SCREEN_WIDTH // 2 - 100, 400, 200, 50, BTN_GRAY, BTN_GRAY_LIGHT):
+            if self.clicked_this_frame:
+                self.state = GameState.MAIN_MENU
 
     def draw_shop_screen(self):
         if self.current_shop_idx is None or not (0 <= self.current_shop_idx < len(self.all_shops)):
@@ -1400,12 +1401,9 @@ class RPGGame:
 
         if self.draw_button("返回", SCREEN_WIDTH // 2 - 75, SCREEN_HEIGHT - 60, 150, 40, RED, ORANGE):
             if self.clicked_this_frame: self.state = GameState.EXPLORING
-            
-    DARK_RED = (100,0,0)
+
     DARK_GREEN = (0,100,0)
     DARK_BLUE = (0,0,100)
-    DARK_GRAY = (50,50,50)
-
 
     def run(self):
         clock = pygame.time.Clock()
@@ -1424,6 +1422,7 @@ class RPGGame:
                 if event.type == MOUSEBUTTONDOWN:
                     if event.button == 1: # Left click
                         self.clicked_this_frame = True
+
                 if event.type == pygame.MOUSEWHEEL:
                     if event.y > 0:
                         self.scroll_up = True
@@ -1556,12 +1555,8 @@ ALL_LOCATIONS = [
 
 # 主函数
 def main():
-    # Define new colors used in RPGGame if they are class members
-    RPGGame.DARK_RED = (100,0,0)
     RPGGame.DARK_GREEN = (0,100,0)
     RPGGame.DARK_BLUE = (0,0,100)
-    RPGGame.DARK_GRAY = (50,50,50)
-    RPGGame.LIGHT_GRAY = (200,200,200) # ensure all colors are accessible
 
     game = RPGGame()
     game.run()
