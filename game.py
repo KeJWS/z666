@@ -9,6 +9,8 @@ from collections import defaultdict
 pygame.init()
 pygame.font.init()
 
+SCREEN_WIDTH, SCREEN_HEIGHT = 960, 720
+
 # 通用颜色定义
 KURO           = (8, 8, 8) # 黑
 SUMI           = (28, 28, 28) # 墨
@@ -19,16 +21,6 @@ TEXT_LIGHT     = (235, 235, 245)        # 亮文字，用于标题或高对比�
 TEXT_FAINT     = (180, 180, 200)        # 次级文字，用于描述或注释
 LIGHT_PANEL    = (56, 60, 72)           # 面板背景色（深灰 One Dark）
 BG_DARK        = (40, 44, 52)           # 主背景色
-
-SCREEN_WIDTH, SCREEN_HEIGHT = 960, 720
-
-GRAY, LIGHT_GRAY = (150, 150, 150), (200, 200, 200)
-RED, GREEN, BLUE = (255, 0, 0), (0, 255, 0), (0, 0, 255)
-GOLD, PURPLE = (255, 215, 0), (128, 0, 128)
-CYAN, BROWN, ORANGE = (0, 255, 255), (165, 42, 42), (255, 165, 0)
-
-# 美化颜色定义
-BTN_HOVER     = (86, 182, 194)
 
 # 按钮颜色（基础/悬停）——视觉层级明确、带轻柔亮度变化
 BTN_GREEN        = (152, 195, 121)
@@ -45,8 +37,6 @@ BTN_RED          = (224, 108, 117)
 BTN_RED_HOVER    = (255, 135, 145)
 BTN_CYAN         = (86, 182, 194)
 BTN_CYAN_HOVER   = (120, 210, 220)
-
-WHITE = (245, 245, 255)                 # 柔和白，用于高亮信息
 
 
 # 创建屏幕和字体
@@ -650,8 +640,6 @@ class RPGGame:
     def enemy_action(self):
         if self.state != GameState.BATTLE or self.battle_turn != "enemy" or not self.current_enemy or not self.current_enemy.is_alive():
             return
-
-        self.add_message(f"--- {self.current_enemy.name}的回合 ---")
         
         # Enemy status effects update at start of its turn
         enemy_status_messages = self.current_enemy.update_status_effects_at_turn_start()
@@ -676,7 +664,6 @@ class RPGGame:
             if not self.player.is_alive(): # Check if DoT killed player
                 self.game_over()
                 return
-            self.add_message("--- 你的回合 ---")
 
 
     def battle_victory(self):
@@ -954,6 +941,8 @@ class RPGGame:
 
     def draw_player_status_bar(self, x, y, width, height):
         pygame.draw.rect(screen, LIGHT_PANEL, (x, y, width, height))
+        pygame.draw.rect(screen, TEXT_LIGHT, (x, y, width, height), 1)
+
         if not self.player: return
         self.draw_text(f"{self.player.name} | Lvl: {self.player.level}", font_medium, TEXT_LIGHT, x + 10, y + 10)
         self.draw_text(f"HP: {self.player.hp}/{self.player.max_hp}", font_small, BTN_GREEN if self.player.hp > self.player.max_hp * 0.3 else BTN_RED, x + 10, y + 40)
@@ -969,7 +958,7 @@ class RPGGame:
         if self.draw_button("开始新游戏", SCREEN_WIDTH//2 - 100, 300, 200, 50, BTN_BLUE, BTN_BLUE_HOVER):
             if self.clicked_this_frame: self.start_new_game()
         # Add Load Game Button if implemented
-        if self.draw_button("退出游戏", SCREEN_WIDTH//2 - 100, 400, 200, 50, BTN_BLUE, BTN_BLUE_HOVER):
+        if self.draw_button("退出游戏", SCREEN_WIDTH//2 - 100, 380, 200, 50, BTN_RED, BTN_RED_HOVER):
             if self.clicked_this_frame: pygame.quit(); sys.exit()
 
     def draw_exploring(self):
@@ -981,6 +970,7 @@ class RPGGame:
 
         # 地点信息框
         pygame.draw.rect(screen, LIGHT_PANEL, (SCREEN_WIDTH - 330, 10, 320, 120))
+        pygame.draw.rect(screen, TEXT_LIGHT, (SCREEN_WIDTH - 330, 10, 320, 120), 1)
         self.draw_text(f"当前位置: {current_loc['name']}", font_medium, TEXT_LIGHT, SCREEN_WIDTH - 320, 20)
         self.draw_text(current_loc['description'], font_small, TEXT_FAINT, SCREEN_WIDTH - 320, 50, max_width=310)
 
@@ -1171,11 +1161,13 @@ class RPGGame:
         # 敌人状态面板
         if self.current_enemy:
             pygame.draw.rect(screen, LIGHT_PANEL, (SCREEN_WIDTH // 2 + 10, 10, SCREEN_WIDTH // 2 - 20, 120))
+            pygame.draw.rect(screen, TEXT_LIGHT, (SCREEN_WIDTH // 2 + 10, 10, SCREEN_WIDTH // 2 - 20, 120), 1)
+
             self.draw_text(f"{self.current_enemy.name} | Lv.{self.current_enemy.level}", font_medium, TEXT_LIGHT, SCREEN_WIDTH // 2 + 20, 20)
             self.draw_text(f"HP: {self.current_enemy.hp}/{self.current_enemy.max_hp}", font_small,
                            BTN_GREEN if self.current_enemy.hp > self.current_enemy.max_hp * 0.3 else BTN_RED,
                            SCREEN_WIDTH // 2 + 20, 50)
-            self.draw_text(f"MP: {self.current_enemy.mp}/{self.current_enemy.max_mp}", font_small, BTN_BLUE, SCREEN_WIDTH // 2 + 220, 50)
+            self.draw_text(f"MP: {self.current_enemy.mp}/{self.current_enemy.max_mp}", font_small, BTN_BLUE, SCREEN_WIDTH // 2 + 170, 50)
             self.draw_text(f"ATK: {self.current_enemy.attack} DEF: {self.current_enemy.defense}", font_small, TEXT_FAINT, SCREEN_WIDTH // 2 + 20, 75)
 
             # 显示敌人状态效果（最多2个）
@@ -1189,7 +1181,7 @@ class RPGGame:
 
         # 回合指示
         turn_text = "你的回合！" if self.battle_turn == "player" else f"{self.current_enemy.name} 的回合..."
-        self.draw_text(turn_text, font_medium, TEXT_LIGHT, SCREEN_WIDTH // 2, 140, "center")
+        self.draw_text(turn_text, font_medium, TEXT_LIGHT, SCREEN_WIDTH // 2, 160, "center")
 
         # 玩家行动区域（仅限玩家回合）
         if self.battle_turn == "player" and self.player.is_alive():
@@ -1203,11 +1195,11 @@ class RPGGame:
 
             for i, skill in enumerate(visible_skills):
                 idx = start + i
-                label = f"{skill.name}" + (f" -MP:{skill.mp_cost}" if skill.mp_cost else '')
-                btn_color = BTN_GREEN if self.player.mp >= skill.mp_cost else LIGHT_PANEL
-                hover_color = BTN_GREEN_HOVER if btn_color == BTN_GREEN else LIGHT_PANEL
+                label = f"{skill.name}" + (f"-MP:{skill.mp_cost}" if skill.mp_cost else '')
+                btn_color = BTN_CYAN if self.player.mp >= skill.mp_cost else LIGHT_PANEL
+                hover_color = BTN_CYAN_HOVER if btn_color == BTN_CYAN else LIGHT_PANEL
 
-                if self.draw_button(label, skill_x, skill_y + i * 45, 180, 40, btn_color, hover_color):
+                if self.draw_button(label, skill_x, skill_y + i * 45, 200, 40, btn_color, hover_color):
                     if self.clicked_this_frame and self.player.mp >= skill.mp_cost:
                         self.player_action(skill_idx=idx)
 
@@ -1222,12 +1214,12 @@ class RPGGame:
                         if self.clicked_this_frame: self.scroll_offset_skills += 1
 
             # 其他行动（物品、逃跑）
-            action_x = SCREEN_WIDTH - 200
-            if self.draw_button("物品", action_x, skill_y, 180, 40, BTN_BLUE, BTN_BLUE_HOVER):
+            action_x = SCREEN_WIDTH - 220
+            if self.draw_button("物品", action_x, skill_y, 200, 40, BTN_ORANGE, BTN_ORANGE_HOVER):
                 if self.clicked_this_frame:
                     self.state = GameState.INVENTORY
 
-            if self.draw_button("逃跑", action_x, skill_y + 45, 180, 40, BTN_ORANGE, BTN_ORANGE_HOVER):
+            if self.draw_button("逃跑", action_x, skill_y + 45, 200, 40, BTN_GREEN, BTN_GREEN_HOVER):
                 if self.clicked_this_frame:
                     self.attempt_escape_battle()
 
@@ -1258,152 +1250,138 @@ class RPGGame:
         screen.fill(KURO)
         self.draw_text("游戏结束", font_large, BTN_RED, SCREEN_WIDTH // 2, 200, "center")
         if self.player:
-            self.draw_text(f"你 {self.player.name} 倒下了。", font_medium, WHITE, SCREEN_WIDTH // 2, 250, "center")
-            self.draw_text(f"最终等级: {self.player.level}", font_medium, WHITE, SCREEN_WIDTH // 2, 280, "center")
+            self.draw_text(f"你 {self.player.name} 倒下了。", font_medium, TEXT_LIGHT, SCREEN_WIDTH // 2, 250, "center")
+            self.draw_text(f"最终等级: {self.player.level}", font_medium, TEXT_LIGHT, SCREEN_WIDTH // 2, 280, "center")
 
         if self.draw_button("返回主菜单", SCREEN_WIDTH // 2 - 100, 400, 200, 50, BTN_GRAY, BTN_GRAY_LIGHT):
             if self.clicked_this_frame:
                 self.state = GameState.MAIN_MENU
 
     def draw_shop_screen(self):
-        if self.current_shop_idx is None or not (0 <= self.current_shop_idx < len(self.all_shops)):
-            self.add_message("错误：无效的商店。")
-            self.state = GameState.EXPLORING
-            return
-        
+        """绘制商店界面"""
         shop = self.all_shops[self.current_shop_idx]
-        sellable_goods = shop.get_all_sellable_goods() # Combined list of items and equipment
+        goods = shop.get_all_sellable_goods() # 可售物品列表（物品 + 装备）
 
-        def handle_buy_item(item_obj):
-            if self.gold >= item_obj.price:
-                self.gold -= item_obj.price
-                self.player.add_item_to_inventory(item_obj) # Assuming item_obj is a template, new instance might be needed if consumables are unique
-                self.add_message(f"购买了 {item_obj.name}。")
+        def handle_buy_item(item):
+            if self.gold >= item.price:
+                self.gold -= item.price
+                self.player.add_item_to_inventory(item)
+                self.add_message(f"购买了 {item.name}。")
             else:
                 self.add_message("金币不足！")
 
-        # For selling, need a different list (player's inventory) and different handler
-        # This simple _draw_generic_list_menu is for one list. A full shop needs buy/sell tabs.
-        # For now, only buying.
-        self._draw_generic_list_menu(f"{shop.name} (金币: {self.gold})",
-                                     sellable_goods,
-                                     handle_buy_item,
-                                     GameState.EXPLORING,
-                                     self.item_page_shop, "item_page_shop", self.items_per_page,
-                                     item_price_func=lambda item: item.price)
-        # Add a "Sell" button that could switch to a sell view.
-
+        # 当前版本仅支持“购买”，后续可添加“出售”分页
+        self._draw_generic_list_menu(
+            f"{shop.name}（金币: {self.gold}）",
+            goods,
+            handle_buy_item,
+            GameState.EXPLORING,
+            self.item_page_shop, "item_page_shop", self.items_per_page,
+            item_price_func=lambda item: item.price
+        )
 
     def draw_equipment_screen(self):
-        screen.fill(self.DARK_BLUE) # Different background for equipment
-        self.draw_text("装备栏", font_large, WHITE, SCREEN_WIDTH // 2, 30, "center")
+        """绘制装备界面"""
+        screen.fill(BG_DARK)
+        self.draw_text("装备栏", font_large, TEXT_LIGHT, SCREEN_WIDTH // 2, 30, "center")
 
-        # Display Current Equipment
-        y_curr_eq = 80
-        self.draw_text("当前装备:", font_medium, WHITE, 150, y_curr_eq, "center")
+        y = 80
+        self.draw_text("当前装备：", font_medium, TEXT_LIGHT, 150, y, "center")
+
+        # 显示角色当前装备
         for slot, item in self.player.equipment.items():
             slot_name_map = {'weapon': "武器", 'armor': "护甲", 'helmet': "头盔", 'accessory': "饰品"}
-            display_name = item.name if item else "无"
-            text = f"{slot_name_map.get(slot, slot)}: {display_name}"
-            self.draw_text(text, font_small, CYAN, 50, y_curr_eq + 40)
+            text = f"{slot_name_map.get(slot, slot)}: {item.name if item else '无'}"
+            self.draw_text(text, font_small, BTN_CYAN, 50, y + 40)
+
             if item:
-                if self.draw_button("卸下", 250, y_curr_eq + 35, 70, 30, RED, ORANGE, WHITE, font_small):
+                if self.draw_button("卸下", 250, y + 35, 70, 30, BTN_RED, BTN_RED_HOVER, SUMI, font_small):
                     if self.clicked_this_frame:
                         _, msg = self.player.unequip(slot)
                         self.add_message(msg)
-            y_curr_eq += 35
-        
-        # Display Equippable Items from Inventory
-        equippable_items = [it for it in self.player.inventory if isinstance(it, Equipment)]
-        y_inv_eq = y_curr_eq + 40
-        self.draw_text("可装备物品 (来自物品栏):", font_medium, WHITE, SCREEN_WIDTH // 2, y_inv_eq, "center")
-        y_inv_eq += 40
+            y += 35
 
-        start_idx = self.scroll_offset_equipment * self.items_per_page
-        end_idx = start_idx + self.items_per_page
-        visible_equippable = equippable_items[start_idx:end_idx]
+        # 显示物品栏中的可装备物品
+        equippable = [it for it in self.player.inventory if isinstance(it, Equipment)]
+        y += 80
+        start = self.scroll_offset_equipment * self.items_per_page
+        end = start + self.items_per_page
+        visible = equippable[start:end]
 
-        for i, item_to_equip in enumerate(visible_equippable):
-            text = f"{item_to_equip.name} ({item_to_equip.equip_type})"
-            if self.draw_button(text, 50, y_inv_eq + i * 45, 300, 40, GREEN, GOLD):
+        for i, item in enumerate(visible):
+            if self.draw_button(item.name, 50, y + i * 45, 240, 40, BTN_GREEN, BTN_GREEN_HOVER):
                 if self.clicked_this_frame:
-                    # Check if already in inventory handled by equip
-                    _, msg = self.player.equip(item_to_equip) # equip handles removing from inv
+                    _, msg = self.player.equip(item)
                     self.add_message(msg)
-                    # Potentially refresh list or page
-                    if len(equippable_items) <= self.scroll_offset_equipment * self.items_per_page and self.scroll_offset_equipment > 0 :
-                         self.scroll_offset_equipment -=1
+                    if len(equippable) <= self.scroll_offset_equipment * self.items_per_page and self.scroll_offset_equipment > 0:
+                        self.scroll_offset_equipment -= 1
 
-
-        # Pagination for equippable items
-        total_pages = (len(equippable_items) -1) // self.items_per_page + 1
+        # 分页按钮
+        total_pages = (len(equippable) - 1) // self.items_per_page + 1
         if total_pages > 1:
-             self.draw_text(f"页: {self.scroll_offset_equipment + 1}/{total_pages}", font_medium, WHITE, SCREEN_WIDTH - 100, SCREEN_HEIGHT - 80, "center")
-             if self.scroll_offset_equipment > 0:
-                if self.draw_button("上", SCREEN_WIDTH - 150, SCREEN_HEIGHT - 40, 40, 30, BLUE, CYAN):
-                    if self.clicked_this_frame: self.scroll_offset_equipment -=1
-             if self.scroll_offset_equipment < total_pages -1:
-                if self.draw_button("下", SCREEN_WIDTH - 90, SCREEN_HEIGHT - 40, 40, 30, BLUE, CYAN):
-                    if self.clicked_this_frame: self.scroll_offset_equipment +=1
+            self.draw_text(f"页: {self.scroll_offset_equipment + 1}/{total_pages}", font_medium, TEXT_LIGHT, SCREEN_WIDTH - 100, SCREEN_HEIGHT - 80, "center")
+            if self.scroll_offset_equipment > 0:
+                if self.draw_button("上", SCREEN_WIDTH - 150, SCREEN_HEIGHT - 40, 40, 30, BTN_BLUE, BTN_BLUE_HOVER):
+                    if self.clicked_this_frame: self.scroll_offset_equipment -= 1
+            if self.scroll_offset_equipment < total_pages - 1:
+                if self.draw_button("下", SCREEN_WIDTH - 90, SCREEN_HEIGHT - 40, 40, 30, BTN_BLUE, BTN_BLUE_HOVER):
+                    if self.clicked_this_frame: self.scroll_offset_equipment += 1
 
-
-        if self.draw_button("返回", SCREEN_WIDTH // 2 - 75, SCREEN_HEIGHT - 40, 150, 30, RED, ORANGE):
+        # 返回按钮
+        if self.draw_button("返回", SCREEN_WIDTH // 2 - 75, SCREEN_HEIGHT - 40, 150, 30, BTN_RED, BTN_RED_HOVER):
             if self.clicked_this_frame: self.state = GameState.EXPLORING
 
 
     def draw_character_info_screen(self):
-        screen.fill(self.DARK_GREEN)
-        self.draw_text("角色信息", font_large, WHITE, SCREEN_WIDTH // 2, 30, "center")
+        """绘制角色信息界面"""
+        screen.fill(BG_DARK)
+        self.draw_text("角色信息", font_large, TEXT_LIGHT, SCREEN_WIDTH // 2, 30, "center")
+        if not self.player:
+            return
 
-        if not self.player: return
+        y = 80
+        x1, x2 = 50, 400
 
-        y_offset = 80
-        col1_x = 50
-        col2_x = 400
+        # 基础信息
+        info = [
+            f"名字: {self.player.name}",
+            f"等级: {self.player.level}",
+            f"经验: {self.player.exp} / {self.player.exp_to_next_level}",
+            f"金币: {self.gold}",
+            f"生命值: {self.player.hp} / {self.player.max_hp}",
+            f"法力值: {self.player.mp} / {self.player.max_mp}",
+            f"攻击力: {self.player.attack} (基础: {self.player.base_attack})",
+            f"防御力: {self.player.defense} (基础: {self.player.base_defense})"
+        ]
+        colors = [TEXT_LIGHT, TEXT_LIGHT, TEXT_LIGHT, BTN_ORANGE, BTN_GREEN, BTN_BLUE, TEXT_LIGHT, TEXT_LIGHT]
 
-        # Basic Stats
-        self.draw_text(f"名字: {self.player.name}", font_medium, WHITE, col1_x, y_offset)
-        y_offset += 35
-        self.draw_text(f"等级: {self.player.level}", font_medium, WHITE, col1_x, y_offset)
-        y_offset += 35
-        self.draw_text(f"经验: {self.player.exp} / {self.player.exp_to_next_level}", font_medium, WHITE, col1_x, y_offset)
-        y_offset += 35
-        self.draw_text(f"金币: {self.gold}", font_medium, GOLD, col1_x, y_offset)
-        y_offset += 50 # Gap
+        for line, color in zip(info, colors):
+            self.draw_text(line, font_medium, color, x1, y)
+            y += 35 if "金币" not in line else 50
 
-        self.draw_text(f"生命值: {self.player.hp} / {self.player.max_hp}", font_medium, GREEN, col1_x, y_offset)
-        y_offset += 35
-        self.draw_text(f"法力值: {self.player.mp} / {self.player.max_mp}", font_medium, BLUE, col1_x, y_offset)
-        y_offset += 35
-        self.draw_text(f"攻击力: {self.player.attack} (基础: {self.player.base_attack})", font_medium, RED, col1_x, y_offset)
-        y_offset += 35
-        self.draw_text(f"防御力: {self.player.defense} (基础: {self.player.base_defense})", font_medium, CYAN, col1_x, y_offset)
-
-        # Equipment in second column
-        y_offset = 80 # Reset for second column
-        self.draw_text("当前装备:", font_medium, WHITE, col2_x, y_offset)
-        y_offset += 35
+        # 装备信息
+        y = 80
+        self.draw_text("当前装备:", font_medium, TEXT_LIGHT, x2, y)
+        y += 35
         slot_name_map = {'weapon': "武器", 'armor': "护甲", 'helmet': "头盔", 'accessory': "饰品"}
         for slot, item in self.player.equipment.items():
-            display_name = item.name if item else "无"
-            self.draw_text(f"{slot_name_map.get(slot, slot)}: {display_name}", font_small, LIGHT_GRAY, col2_x, y_offset)
-            y_offset += 25
-        
-        # Skills
-        y_offset += 20
-        self.draw_text("技能列表:", font_medium, WHITE, col2_x, y_offset)
-        y_offset += 35
-        for skill in self.player.skills[:6]: # Show first 6 skills
-            self.draw_text(f"- {skill.name} (MP: {skill.mp_cost})", font_small, PURPLE, col2_x, y_offset)
-            self.draw_text(f"  {skill.description}", font_small, GRAY, col2_x + 10, y_offset + 20, max_width=SCREEN_WIDTH - col2_x - 20)
-            y_offset += 45
-            if y_offset > SCREEN_HEIGHT - 100: break # Prevent overflow
+            name = item.name if item else "无"
+            self.draw_text(f"{slot_name_map.get(slot, slot)}: {name}", font_small, TEXT_FAINT, x2, y)
+            y += 25
 
-        if self.draw_button("返回", SCREEN_WIDTH // 2 - 75, SCREEN_HEIGHT - 60, 150, 40, RED, ORANGE):
+        # 技能信息
+        y += 20
+        self.draw_text("技能列表：", font_medium, TEXT_LIGHT, x2, y)
+        y += 35
+        for skill in self.player.skills[:6]:
+            self.draw_text(f"- {skill.name} (MP: {skill.mp_cost})", font_small, BTN_CYAN, x2, y)
+            self.draw_text(f"  {skill.description}", font_small, TEXT_FAINT, x2 + 10, y + 20, max_width=SCREEN_WIDTH - x2 - 20)
+            y += 45
+            if y > SCREEN_HEIGHT - 100:
+                break
+
+        if self.draw_button("返回", SCREEN_WIDTH // 2 - 75, SCREEN_HEIGHT - 80, 150, 40, BTN_RED, BTN_RED_HOVER):
             if self.clicked_this_frame: self.state = GameState.EXPLORING
-
-    DARK_GREEN = (0,100,0)
-    DARK_BLUE = (0,0,100)
 
     def run(self):
         clock = pygame.time.Clock()
@@ -1527,20 +1505,20 @@ ALL_EQUIPMENTS = [
 ALL_LOCATIONS = [
     {
         "name": "宁静小村", "description": "一个和平的小村庄，冒险的起点。",
-        "enemies": [], # No enemies in the first village
-        "shop_idx": 0, # Index of shop in self.all_shops
+        "enemies": [],
+        "shop_idx": 0,
         "can_rest": True
     },
     {
         "name": "村外小径", "description": "连接村庄和森林的小路。",
-        "enemies": [0, 1], # Indices from self.all_enemies_templates
+        "enemies": [0, 1],
         "shop_idx": None,
         "can_rest": False
     },
     {
         "name": "迷雾森林", "description": "充满未知危险的森林。",
         "enemies": [1, 2, 3, 4],
-        "shop_idx": 1, # A shop deeper in or at edge of forest
+        "shop_idx": 1,
         "can_rest": False
     },
     {
@@ -1549,15 +1527,11 @@ ALL_LOCATIONS = [
         "shop_idx": None,
         "can_rest": False
     }
-    # Add more locations
 ]
 
 
 # 主函数
 def main():
-    RPGGame.DARK_GREEN = (0,100,0)
-    RPGGame.DARK_BLUE = (0,0,100)
-
     game = RPGGame()
     game.run()
 
