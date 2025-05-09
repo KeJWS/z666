@@ -1,11 +1,13 @@
-from pygame.font import SysFont
+import pygame
 
 SCREEN_WIDTH, SCREEN_HEIGHT = 960, 720
 
-FONT_SMALL = SysFont('notosansscblack', 16)
-FONT_MEDIUM = SysFont('notosansscblack', 22)
-FONT_LARGE = SysFont('notosansscblack', 28)
-FONT_TITLE = SysFont('notosansscblack', 38)
+pygame.font.init()
+
+FONT_SMALL = pygame.font.SysFont('notosansscblack', 16)
+FONT_MEDIUM = pygame.font.SysFont('notosansscblack', 22)
+FONT_LARGE = pygame.font.SysFont('notosansscblack', 28)
+FONT_TITLE = pygame.font.SysFont('notosansscblack', 38)
 
 # 通用颜色定义
 KURO           = (8, 8, 8) # 黑

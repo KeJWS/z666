@@ -1,6 +1,6 @@
 from enum import Enum, auto
 
-from data import Skill, Item, Equipment
+from data import Skill, Item, Equipment, Shop
 
 # 游戏状态
 class GameState(Enum):
@@ -83,4 +83,11 @@ ALL_LOCATIONS = [
         "shop_idx": None,
         "can_rest": False
     }
+]
+
+ALL_SHOPS = [
+    Shop("新手村道具店", items_for_sale=[ALL_ITEMS[0], ALL_ITEMS[2], ALL_ITEMS[4]], 
+         equipments_for_sale=[ALL_EQUIPMENTS[0], ALL_EQUIPMENTS[1]]),
+    Shop("森林驿站补给点", items_for_sale=[ALL_ITEMS[1], ALL_ITEMS[3], ALL_ITEMS[5], ALL_ITEMS[7]], 
+         equipments_for_sale=[ALL_EQUIPMENTS[4], ALL_EQUIPMENTS[5], ALL_EQUIPMENTS[6], ALL_EQUIPMENTS[7]])
 ]
