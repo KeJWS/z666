@@ -824,13 +824,24 @@ class RPGGame:
         else:
             self.add_message("这里无法休息。")
 
+    def mouse_in_rect(self, x, y, width, height):
+        mx, my = pygame.mouse.get_pos()
+        return x <= mx <= x + width and y <= my <= y + height
 
-    # --- Drawing Functions ---
+
+    # --- 文字绘制函数 ---
     def draw_text(self, text, font, color, x, y, align="left", max_width=None):
+        """
+        渲染文字，支持自动换行和对齐方式
+        - align: "left", "center", "right"
+        - max_width: 设定最大行宽，超过则换行
+        """
         if max_width:
             words = text.split(' ')
             lines = []
             current_line = ""
+
+            # 构建换行列表
             for word in words:
                 test_line = current_line + word + " "
                 if font.size(test_line)[0] <= max_width:
@@ -840,31 +851,38 @@ class RPGGame:
                     current_line = word + " "
             lines.append(current_line)
 
-            line_height_total = 0
+            total_height = 0
             for i, line_text in enumerate(lines):
                 text_surface = font.render(line_text.strip(), True, color)
                 text_rect = text_surface.get_rect()
+
                 if align == "center":
                     text_rect.centerx = x
                 elif align == "right":
                     text_rect.right = x
-                else:  # left
+                else:
                     text_rect.left = x
-                text_rect.top = y + i * (font.get_linesize())
+                text_rect.top = y + i * font.get_linesize()
+
                 screen.blit(text_surface, text_rect)
-                line_height_total += font.get_linesize()
-            return line_height_total
+                total_height += font.get_linesize()
+
+            return total_height
+
         else:
+            # 单行模式
             text_surface = font.render(text, True, color)
             text_rect = text_surface.get_rect()
+
             if align == "center":
                 text_rect.center = (x, y)
             elif align == "right":
                 text_rect.right = x
                 text_rect.top = y
-            else:  # left
+            else:
                 text_rect.left = x
                 text_rect.top = y
+
             screen.blit(text_surface, text_rect)
             return text_rect.height
 
@@ -890,10 +908,6 @@ class RPGGame:
         screen.blit(text_surf, text_rect)
 
         return is_hovered
-
-    def mouse_in_rect(self, x, y, width, height):
-        mx, my = pygame.mouse.get_pos()
-        return x <= mx <= x + width and y <= my <= y + height
 
     def draw_message_log(self, x, y, width, height):
         # 背景与边框
@@ -1126,39 +1140,42 @@ class RPGGame:
 
 
     def draw_inventory(self):
+        """
+        绘制物品栏界面，根据当前游戏状态决定使用逻辑
+        """
+
         def handle_item_use_from_inv(item_obj):
-            # Determine target (player for most items, enemy if in battle and item is offensive)
-            target_char = self.player
-            if self.state == GameState.BATTLE and item_obj.target == "enemy":
-                target_char = self.current_enemy
-            
-            success, message = self.use_item(item_obj, target_char)
-            if success:
-                if self.state == GameState.INVENTORY : # If used outside battle
-                    self.state = GameState.EXPLORING # Go back to exploring after use
-                elif self.state == GameState.BATTLE: # If used in battle
-                    if not self.current_enemy.is_alive():
-                        self.battle_victory()
-                    elif not self.player.is_alive(): # Self-damage items?
-                        self.game_over()
-                    else: # End player's turn in battle
-                        self.end_player_turn_in_battle()
-                    # After using an item in battle, usually return to battle screen
-                    # The use_item might change state if battle ends.
-                    # For now, assume we return to inventory and user clicks "Back" or item use forces battle screen
-                    # To simplify, let's make it so using an item from inv during battle returns to battle screen
-                    if self.state == GameState.BATTLE: # Check again if state changed
-                        pass # Stay in battle, turn changes
-                    else: # Battle ended due to item use
-                        pass
-                # If item_page_inv needs reset if list shrinks
-                if len(self.player.inventory) <= self.item_page_inv * self.items_per_page and self.item_page_inv > 0:
-                    self.item_page_inv -=1
+            """
+            使用物品时的处理逻辑（根据战斗状态与目标判断）
+            """
+            # 目标选择：默认对玩家使用，若为敌方目标则切换
+            target = self.current_enemy if self.state == GameState.BATTLE and item_obj.target == "enemy" else self.player
 
+            success, message = self.use_item(item_obj, target)
 
+            if not success:
+                return
+
+            # === 状态逻辑切换 ===
+            if self.state == GameState.INVENTORY:
+                self.state = GameState.EXPLORING  # 从物品栏回归探索模式
+            elif self.state == GameState.BATTLE:
+                if not self.current_enemy.is_alive():
+                    self.battle_victory()
+                elif not self.player.is_alive():
+                    self.game_over()
+                else:
+                    self.end_player_turn_in_battle()
+                # 使用后仍在战斗中则留在战斗界面，否则回主界面（略）
+
+            # 若物品数量减少，页数也应回退
+            if len(self.player.inventory) <= self.item_page_inv * self.items_per_page and self.item_page_inv > 0:
+                self.item_page_inv -= 1
+
+        # 返回状态设定：若当前敌人存在且非探索状态，则退回战斗界面，否则探索界面
         back_state = GameState.BATTLE if self.current_enemy and self.state != GameState.EXPLORING else GameState.EXPLORING
+        # 绘制物品栏（统一 UI 面板调用）
         self._draw_generic_list_menu("物品栏", self.player.inventory, handle_item_use_from_inv, back_state, self.item_page_inv, "item_page_inv", self.items_per_page)
-
 
     def draw_battle(self):
         # 根据是否有敌人决定背景颜色
@@ -1295,9 +1312,9 @@ class RPGGame:
                 item_price_func=lambda item: item.price
             )
 
-            if self.draw_button("出售", tab_x + 140, 60, 100, 30,
-                            BTN_ORANGE if self.shop_tab == "sell" else BTN_GRAY,
-                            BTN_ORANGE_HOVER if self.shop_tab == "sell" else BTN_GRAY_LIGHT):
+            if self.draw_button("出售", tab_x + 160, 60, 100, 30,
+                            BTN_ORANGE if self.shop_tab == "sell" else BTN_RED,
+                            BTN_ORANGE_HOVER if self.shop_tab == "sell" else BTN_RED_HOVER):
                 if self.clicked_this_frame:
                     self.shop_tab = "sell"
 
@@ -1320,9 +1337,9 @@ class RPGGame:
                 item_price_func=sell_price
             )
 
-            if self.draw_button("购买", tab_x, 60, 100, 30,
-                            BTN_GREEN if self.shop_tab == "buy" else BTN_GRAY,
-                            BTN_GREEN_HOVER if self.shop_tab == "buy" else BTN_GRAY_LIGHT):
+            if self.draw_button("购买", tab_x - 20, 60, 100, 30,
+                            BTN_GREEN if self.shop_tab == "buy" else BTN_ORANGE,
+                            BTN_GREEN_HOVER if self.shop_tab == "buy" else BTN_ORANGE_HOVER):
                 if self.clicked_this_frame:
                     self.shop_tab = "buy"
 
