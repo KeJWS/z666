@@ -1,4 +1,3 @@
-import random
 
 # 装备类
 class Equipment:
