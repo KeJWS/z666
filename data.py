@@ -13,10 +13,10 @@ class Equipment:
 
     def __str__(self):
         bonuses = [
-            f"攻击+{self.attack_bonus}" if self.attack_bonus else "",
-            f"防御+{self.defense_bonus}" if self.defense_bonus else "",
-            f"生命+{self.hp_bonus}" if self.hp_bonus else "",
-            f"法力+{self.mp_bonus}" if self.mp_bonus else ""
+            f"ATK+{self.attack_bonus}" if self.attack_bonus else "",
+            f"DEF+{self.defense_bonus}" if self.defense_bonus else "",
+            f"HP+{self.hp_bonus}" if self.hp_bonus else "",
+            f"MP+{self.mp_bonus}" if self.mp_bonus else ""
         ]
         bonus_str = ", ".join(filter(None, bonuses))
         return f"{self.name} ({bonus_str})" if bonus_str else self.name
