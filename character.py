@@ -28,10 +28,10 @@ class StatusEffect:
         return self.turns_remaining < 0
 
 class Character:
-    def __init__(self, name, hp, max_hp, mp, max_mp, attack, defense, level=1, exp=0, game_skills_ref=None):
+    def __init__(self, name, max_hp, max_mp, attack, defense, level=1, exp=0, game_skills_ref=None):
         self.name = name
-        self.hp = hp
-        self.mp = mp
+        self.hp = max_hp
+        self.mp = max_mp
         self.base_max_hp = max_hp
         self.base_max_mp = max_mp
         self.base_attack = attack
@@ -216,8 +216,8 @@ class Character:
                     break
 
 class Enemy(Character):
-    def __init__(self, name, hp, mp, attack, defense, level, exp_reward, gold_reward, skills_refs=None, drop_table=None, description=""):
-        super().__init__(name, hp, hp, mp, mp, attack, defense, level)
+    def __init__(self, name, max_hp, max_mp, attack, defense, level, exp_reward, gold_reward, skills_refs=None, drop_table=None, description=""):
+        super().__init__(name, max_hp, max_mp, attack, defense, level)
         self.exp_reward = exp_reward
         self.gold_reward = gold_reward
         self.skills = skills_refs or []

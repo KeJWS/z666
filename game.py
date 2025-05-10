@@ -92,7 +92,7 @@ class RPGGame:
         self.all_shops = ALL_SHOPS
 
     def start_new_game(self):
-        self.player = Character("冒险者", 100, 100, 30, 30, 10, 5, level=1, exp=0, game_skills_ref=self.all_skills)
+        self.player = Character("冒险者", 100, 30, 10, 5, level=1, exp=0, game_skills_ref=self.all_skills)
         self.player.skills.append(self.all_skills[0]) # 普通攻击
         self.player.skills.append(self.all_skills[1]) # 强力一击
 
@@ -124,8 +124,8 @@ class RPGGame:
         template = self.all_enemies_templates[random.choice(loc_data["enemies"])]
         self.current_enemy = Enemy(
             name=template.name,
-            hp=template.base_max_hp,
-            mp=template.base_max_mp,
+            max_hp=template.base_max_hp,
+            max_mp=template.base_max_mp,
             attack=template.base_attack,
             defense=template.base_defense,
             level=template.level,
@@ -207,12 +207,6 @@ class RPGGame:
                 else:
                     self.end_player_turn_in_battle()
             return
-
-        elif item_idx is not None:
-            self.add_message("物品使用逻辑在战斗中应通过物品菜单触发。")
-            return
-
-        self.add_message("无效的技能选择。")
 
     def end_player_turn_in_battle(self):
         if self.state == GameState.BATTLE:
@@ -362,10 +356,8 @@ class RPGGame:
             self.item_page_inv = 0
             self.scroll_offset_inventory = 0
 
-            if loc["enemies"] and random.random() < 0.3:
+            if loc["enemies"] and random.random() < 0.15:
                 self.start_battle()
-        else:
-            self.add_message("无效的地点。")
 
     def attempt_escape_battle(self):
         if self.state != GameState.BATTLE:
@@ -384,8 +376,6 @@ class RPGGame:
             self.player.hp = self.player.max_hp
             self.player.mp = self.player.max_mp
             self.add_message("你休息了一下，完全恢复了状态！")
-        else:
-            self.add_message("这里无法休息。")
 
     def mouse_in_rect(self, x, y, width, height):
         mx, my = pygame.mouse.get_pos()
@@ -401,24 +391,6 @@ class RPGGame:
             elif event.type == pygame.MOUSEWHEEL:
                 self.scroll_up = event.y > 0
                 self.scroll_down = event.y < 0
-            elif event.type == KEYDOWN:
-                self.handle_keydown(event.key)
-
-    def handle_keydown(self, key):
-        if self.state == GameState.EXPLORING:
-            if key == K_i: self.state = GameState.INVENTORY; self.item_page_inv = 0
-            if key == K_e: self.state = GameState.EQUIPMENT_SCREEN; self.scroll_offset_equipment = 0
-            if key == K_c: self.state = GameState.CHARACTER_INFO
-        elif self.state in {GameState.INVENTORY, GameState.EQUIPMENT_SCREEN, GameState.CHARACTER_INFO, GameState.SHOP}:
-            if key == K_ESCAPE:
-                self.state = GameState.BATTLE if self.current_enemy else GameState.EXPLORING
-        elif self.state == GameState.BATTLE and self.battle_turn == "player":
-            if key in (K_1, K_2):
-                idx = key - K_1
-                if idx < len(self.player.skills):
-                    self.player_action(skill_idx=idx)
-            elif key == K_i:
-                self.state = GameState.INVENTORY
 
     def run(self):
         clock = pygame.time.Clock()
