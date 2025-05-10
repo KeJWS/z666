@@ -3,7 +3,6 @@ import sys
 import random
 from pygame.locals import *
 
-from data import Shop
 from character import StatusEffect, Character, Enemy
 from game_ui import GameUI, screen
 from colors import *

@@ -174,7 +174,7 @@ class GameUI:
         current_loc = self.game.get_current_location()
 
         # 玩家状态栏
-        self.draw_player_status_bar(10, 10, 300, 120)
+        self.draw_player_status_bar(10, 10, 320, 120)
 
         # 地点信息框
         pygame.draw.rect(screen, LIGHT_PANEL, (SCREEN_WIDTH - 330, 10, 320, 120))
@@ -361,10 +361,10 @@ class GameUI:
         """绘制装备界面"""
         screen.fill(BG_DARK)
         self.draw_text("装备栏", FONT_LARGE, TEXT_LIGHT, SCREEN_WIDTH // 2, 30, "center")
-    
+
         y = 80
         self.draw_text("当前装备：", FONT_MEDIUM, TEXT_LIGHT, 150, y, "center")
-    
+
         # 显示角色当前装备
         for slot, item in self.game.player.equipment.items():
             slot_name_map = {'weapon': "武器", 'armor': "护甲", 'helmet': "头盔", 'accessory': "饰品"}
@@ -372,13 +372,13 @@ class GameUI:
             self.draw_text(text, FONT_SMALL, BTN_CYAN, 50, y + 40)
 
             if item:
-                if self.draw_button("卸下", 250, y + 35, 70, 30, BTN_RED, BTN_RED_HOVER, KURO, FONT_SMALL):
+                if self.draw_button("卸下", 200, y + 35, 50, 28, BTN_RED, BTN_RED_HOVER, KURO, FONT_SMALL):
                     if self.game.clicked_this_frame:
                         _, msg = self.game.player.unequip(slot)
                         self.game.add_message(msg)
-            y += 35
+            y += 37
 
-        self.draw_player_status_bar(SCREEN_WIDTH - 310, 10, 300, 120)
+        self.draw_player_status_bar(SCREEN_WIDTH - 330, 10, 320, 120)
 
         # --- 合并可装备物品 ---
         equippable = [it for it in self.game.player.inventory if isinstance(it, Equipment)]
@@ -417,14 +417,21 @@ class GameUI:
 
                 count = getattr(item, '_quantity', 1)
                 btn_text = f"{item.name} x{count}" if count > 1 else item.name
-                if self.draw_button(btn_text, x, y_pos, col_width, button_height, BTN_GREEN, BTN_GREEN_HOVER, KURO, FONT_MEDIUM):
+
+                # 装备面板框
+                pygame.draw.rect(screen, LIGHT_PANEL, (x, y_pos, col_width, button_height))
+                pygame.draw.rect(screen, TEXT_LIGHT, (x, y_pos, col_width, button_height), 1)
+                self.draw_text(btn_text, FONT_MEDIUM, TEXT_LIGHT, x + 20, y_pos + 5, max_width=col_width)
+
+                # 装备按钮
+                if self.draw_button("装备", x + col_width - 60, y_pos + button_height // 2 - 14, 50, 28, BTN_PURPLE, BTN_PURPLE_HOVER, KURO, FONT_SMALL):
                     if self.game.clicked_this_frame:
                         _, msg = self.game.player.equip(item)
                         self.game.add_message(msg)
                         if len(merged_items) <= self.game.scroll_offset_equipment * items_per_page and self.game.scroll_offset_equipment > 0:
                             self.game.scroll_offset_equipment -= 1
 
-                # 描述信息（可选）
+                # 描述信息
                 if getattr(item, "description", None):
                     self.draw_text(item.description, FONT_SMALL, TEXT_FAINT, x + 6, y_pos + button_height + 2, max_width=col_width - 12)
 
