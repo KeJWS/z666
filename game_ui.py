@@ -153,7 +153,7 @@ class GameUI:
         pygame.draw.rect(screen, TEXT_LIGHT, (x, y, width, height), 1)
 
         self.draw_text(f"{self.game.player.name} | Lvl: {self.game.player.level}", FONT_MEDIUM, TEXT_LIGHT, x + 10, y + 10)
-        self.draw_text(f"HP: {self.game.player.hp}/{self.game.player.max_hp}", FONT_SMALL, BTN_GREEN if self.game.player.hp > self.game.player.max_hp * 0.3 else BTN_RED, x + 10, y + 40)
+        self.draw_text(f"HP: {self.game.player.hp}/{self.game.player.max_hp}", FONT_SMALL, BTN_GREEN if self.game.player.hp > self.game.player.max_hp * 0.3 else BTN_RED_DARK, x + 10, y + 40)
         self.draw_text(f"MP: {self.game.player.mp}/{self.game.player.max_mp}", FONT_SMALL, BTN_BLUE, x + 170, y + 40)
         self.draw_text(f"ATK: {self.game.player.attack} DEF: {self.game.player.defense}", FONT_SMALL, TEXT_FAINT, x + 10, y + 65)
         self.draw_text(f"EXP: {self.game.player.exp}/{self.game.player.exp_to_next_level}", FONT_SMALL, BTN_PURPLE, x + 170, y + 65)
@@ -234,8 +234,8 @@ class GameUI:
         if current_loc.get("can_rest", False):
             button_y += button_height + button_spacing
             if self.draw_button("休息-20G", button_x_start, button_y, button_width, button_height, 
-                                BTN_PURPLE if self.game.gold >= 20 else LIGHT_PANEL, 
-                                BTN_PURPLE_HOVER if self.game.gold >= 20 else LIGHT_PANEL,
+                                BTN_PURPLE if self.game.gold >= 20 else SHEN_ZI_SE, 
+                                BTN_PURPLE_HOVER if self.game.gold >= 20 else SHEN_ZI_SE,
                                 KURO if self.game.gold >= 20 else TEXT_FAINT):
                 if self.game.clicked_this_frame:
                     if self.game.gold >= 20:
@@ -602,122 +602,130 @@ class GameUI:
             if self.game.clicked_this_frame: self.game.state = GameState.EXPLORING
 
     def draw_battle(self):
-        # 根据是否有敌人决定背景颜色
         screen.fill(BG_DARK if self.game.current_enemy else KURO)
-
-        # 玩家状态面板
         if self.game.player:
             self.draw_player_status_bar(10, 10, SCREEN_WIDTH // 2 - 20, 120)
-
-        # 敌人状态面板
         if self.game.current_enemy:
-            pygame.draw.rect(screen, LIGHT_PANEL, (SCREEN_WIDTH // 2 + 10, 10, SCREEN_WIDTH // 2 - 20, 120))
-            pygame.draw.rect(screen, TEXT_LIGHT, (SCREEN_WIDTH // 2 + 10, 10, SCREEN_WIDTH // 2 - 20, 120), 1)
+            self.draw_enemy_status_panel()
 
-            self.draw_text(f"{self.game.current_enemy.name} | Lv.{self.game.current_enemy.level}", FONT_MEDIUM, TEXT_LIGHT, SCREEN_WIDTH // 2 + 20, 20)
-            self.draw_text(f"HP: {self.game.current_enemy.hp}/{self.game.current_enemy.max_hp}", FONT_SMALL,
-                           BTN_GREEN if self.game.current_enemy.hp > self.game.current_enemy.max_hp * 0.3 else BTN_RED,
-                           SCREEN_WIDTH // 2 + 20, 50)
-            self.draw_text(f"MP: {self.game.current_enemy.mp}/{self.game.current_enemy.max_mp}", FONT_SMALL, BTN_BLUE, SCREEN_WIDTH // 2 + 170, 50)
-            self.draw_text(f"ATK: {self.game.current_enemy.attack} DEF: {self.game.current_enemy.defense}", FONT_SMALL, TEXT_FAINT, SCREEN_WIDTH // 2 + 20, 75)
-
-            # 显示敌人状态效果（最多2个）
-            y_offset = 100
-            for effect in self.game.current_enemy.status_effects[:2]:
-                self.draw_text(f"{effect.name}({effect.turns_remaining})", FONT_SMALL, BTN_PURPLE, SCREEN_WIDTH // 2 + 20, y_offset)
-                y_offset += 15
-
-        # 消息日志区域
         self.draw_message_log(10, SCREEN_HEIGHT - 160, SCREEN_WIDTH - 20, 150)
 
-        # 回合指示
         turn_text = "你的回合！" if self.game.battle_turn == "player" else f"{self.game.current_enemy.name} 的回合..."
         self.draw_text(turn_text, FONT_MEDIUM, TEXT_LIGHT, SCREEN_WIDTH // 2, 160, "center")
 
-        # 玩家行动区域（仅限玩家回合）
         if self.game.battle_turn == "player" and self.game.player.is_alive():
-            skill_x, skill_y = 20, SCREEN_HEIGHT - 300
-            self.draw_text("技能:", FONT_MEDIUM, TEXT_LIGHT, skill_x + 75, skill_y - 25, "center")
+            self.draw_player_actions_panel()
 
-            # 排除第一个技能（通常是“攻击”）
-            filtered_skills = self.game.player.skills[1:]
+    def draw_enemy_status_panel(self):
+        enemy = self.game.current_enemy
+        panel_rect = pygame.Rect(SCREEN_WIDTH // 2 + 10, 10, SCREEN_WIDTH // 2 - 20, 120)
+        pygame.draw.rect(screen, LIGHT_PANEL, panel_rect)
+        pygame.draw.rect(screen, TEXT_LIGHT, panel_rect, 1)
 
-            # 技能分页逻辑
-            skills_per_page = 3
-            start = self.game.scroll_offset_skills * skills_per_page
-            visible_skills = filtered_skills[start:start + skills_per_page]
+        self.draw_text(f"{enemy.name} | Lv.{enemy.level}", FONT_MEDIUM, TEXT_LIGHT, panel_rect.x + 10, 20)
+        self.draw_text(f"HP: {enemy.hp}/{enemy.max_hp}", FONT_SMALL,
+                       BTN_GREEN if enemy.hp > enemy.max_hp * 0.3 else BTN_RED_DARK, panel_rect.x + 10, 50)
+        self.draw_text(f"MP: {enemy.mp}/{enemy.max_mp}", FONT_SMALL, BTN_BLUE, panel_rect.x + 160, 50)
+        self.draw_text(f"ATK: {enemy.attack} DEF: {enemy.defense}", FONT_SMALL, TEXT_FAINT, panel_rect.x + 10, 75)
 
-            for i, skill in enumerate(visible_skills):
-                true_idx = self.game.player.skills.index(skill)
-                label = f"{skill.name}" + (f"-MP:{skill.mp_cost}" if skill.mp_cost else '')
-                btn_color = BTN_CYAN if self.game.player.mp >= skill.mp_cost else LIGHT_PANEL
-                hover_color = BTN_CYAN_HOVER if btn_color == BTN_CYAN else LIGHT_PANEL
-                font_color = KURO if btn_color == BTN_CYAN else TEXT_FAINT
+        # 显示敌人状态效果（最多2个）
+        y_offset = 100
+        for effect in enemy.status_effects[:2]:
+            self.draw_text(f"{effect.name}({effect.turns_remaining})", FONT_SMALL, BTN_PURPLE, panel_rect.x + 10, y_offset)
+            y_offset += 15
 
-                if self.draw_button(label, skill_x, skill_y + i * 45, 200, 40, btn_color, hover_color, font_color):
-                    if self.game.clicked_this_frame and self.game.player.mp >= skill.mp_cost:
-                        self.game.player_action(skill_idx=true_idx)
-                        self.show_item_popup = False
+    def draw_player_actions_panel(self):
+        skill_x, skill_y = 20, SCREEN_HEIGHT - 300
+        self.draw_text("技能:", FONT_MEDIUM, TEXT_LIGHT, skill_x + 75, skill_y - 25, "center")
+        self.draw_skill_buttons(skill_x, skill_y)
+        self.draw_action_buttons(SCREEN_WIDTH - 220, skill_y)
 
-            # 技能翻页按钮
-            total_pages = (len(self.game.player.skills) - 1) // skills_per_page + 1
-            if total_pages > 1:
-                if self.game.scroll_offset_skills > 0:
-                    if self.draw_button("↑", skill_x + 125, skill_y - 35, 28, 28, BTN_BLUE, BTN_BLUE_HOVER, KURO, FONT_SMALL):
-                        if self.game.clicked_this_frame: self.game.scroll_offset_skills -= 1
-                if self.game.scroll_offset_skills < total_pages - 1:
-                    if self.draw_button("↓", skill_x + 160, skill_y - 35, 28, 28, BTN_BLUE, BTN_BLUE_HOVER, KURO, FONT_SMALL):
-                        if self.game.clicked_this_frame: self.game.scroll_offset_skills += 1
+    def draw_skill_buttons(self, x, y):
+        filtered_skills = self.game.player.skills[1:]
+        skills_per_page = 3
+        start = self.game.scroll_offset_skills * skills_per_page
+        visible_skills = filtered_skills[start:start + skills_per_page]
 
-            # 其他行动
-            action_x = SCREEN_WIDTH - 220
-            if self.draw_button("攻击", action_x, skill_y, 200, 40, BTN_RED, BTN_RED_HOVER):
-                if self.game.clicked_this_frame:
-                    self.game.player_action(skill_idx=0)
+        for i, skill in enumerate(visible_skills):
+            true_idx = self.game.player.skills.index(skill)
+            label = f"{skill.name}" + (f"-MP:{skill.mp_cost}" if skill.mp_cost else '')
+            enough_mp = self.game.player.mp >= skill.mp_cost
+            btn_color = BTN_CYAN if enough_mp else SHEN_LAN_SE
+            hover_color = BTN_CYAN_HOVER if enough_mp else SHEN_LAN_SE
+            font_color = KURO if enough_mp else TEXT_FAINT
+
+            if self.draw_button(label, x, y + i * 45, 200, 40, btn_color, hover_color, font_color):
+                if self.game.clicked_this_frame and enough_mp:
+                    self.game.player_action(skill_idx=true_idx)
                     self.show_item_popup = False
 
-            if self.show_item_popup:
-                self.draw_item_popup()
-            if self.draw_button("物品", action_x, skill_y + 45, 200, 40,
-                                BTN_ORANGE if not self.show_item_popup else LIGHT_PANEL,
-                                BTN_ORANGE_HOVER if not self.show_item_popup else LIGHT_PANEL,
-                                KURO if not self.show_item_popup else TEXT_FAINT):
+        total_pages = (len(filtered_skills) - 1) // skills_per_page + 1
+        if total_pages > 1:
+            if self.game.scroll_offset_skills > 0 and self.draw_button("↑", x + 125, y - 35, 28, 28, BTN_BLUE, BTN_BLUE_HOVER):
                 if self.game.clicked_this_frame:
-                    self.show_item_popup = True
+                    self.game.scroll_offset_skills -= 1
+            if self.game.scroll_offset_skills < total_pages - 1 and self.draw_button("↓", x + 160, y - 35, 28, 28, BTN_BLUE, BTN_BLUE_HOVER):
+                if self.game.clicked_this_frame:
+                    self.game.scroll_offset_skills += 1
 
-            if self.draw_button("逃跑", action_x, skill_y + 90, 200, 40, BTN_GREEN, BTN_GREEN_HOVER):
-                if self.game.clicked_this_frame:
-                    self.game.attempt_escape_battle()
-                    self.show_item_popup = False
+    def draw_action_buttons(self, x, y):
+        if self.draw_button("攻击", x, y, 200, 40, BTN_RED, BTN_RED_HOVER):
+            if self.game.clicked_this_frame:
+                self.game.player_action(skill_idx=0)
+                self.show_item_popup = False
+
+        if self.draw_button("物品", x, y + 45, 200, 40,
+                            BTN_ORANGE if not self.show_item_popup else SHEN_ZONG_SE,
+                            BTN_ORANGE_HOVER if not self.show_item_popup else SHEN_ZONG_SE,
+                            KURO if not self.show_item_popup else TEXT_FAINT):
+            if self.game.clicked_this_frame:
+                self.show_item_popup = True
+
+        if self.draw_button("逃跑", x, y + 90, 200, 40, BTN_GREEN, BTN_GREEN_HOVER):
+            if self.game.clicked_this_frame:
+                self.game.attempt_escape_battle()
+                self.show_item_popup = False
+
+        if self.show_item_popup:
+            self.draw_item_popup()
 
     def draw_item_popup(self):
         popup_rect = pygame.Rect(250, 200, 400, 300)
         pygame.draw.rect(screen, ONE_DARK, popup_rect)
         pygame.draw.rect(screen, TEXT_FAINT, popup_rect, 1)
 
-        y_offset = 170
-        # usable_items = [item for item in self.game.player.inventory if item.can_use_in_battle()]
         items_to_display = [item for item in self.game.player.inventory if isinstance(item, Item)]
 
-        # --- 合并相似物品（根据 item.name 分组） ---
+        # 合并相似物品
         grouped_items = defaultdict(list)
         for item in items_to_display:
             grouped_items[item.name].append(item)
 
-        # 将合并后的条目转为列表
         merged_items = []
         for name, group in grouped_items.items():
-            rep_item = group[0]  # 使用第一个作为代表
-            rep_item._quantity = len(group)  # 附加数量属性
+            rep_item = group[0]
+            rep_item._quantity = len(group)
             merged_items.append(rep_item)
 
         if not merged_items:
             self.draw_text("空空如也。", FONT_MEDIUM, TEXT_LIGHT, popup_rect.centerx, popup_rect.centery, "center")
         else:
+            # --- 多列布局 ---
+            items_per_column = 7
+            column_width = 180
+            row_height = 34
+            start_x = popup_rect.left + 30
+            start_y = popup_rect.top + 20
+
             for idx, item in enumerate(merged_items):
-                if self.draw_button(f"{item.name} x{getattr(item, '_quantity', 1)}", 270, y_offset + idx * 38 + 50, 360, 28, BTN_GREEN, BTN_GREEN_HOVER, KURO, FONT_SMALL):
+                col = idx // items_per_column
+                row = idx % items_per_column
+                x = start_x + col * column_width
+                y = start_y + row * row_height
+
+                label = f"{item.name} x{getattr(item, '_quantity', 1)}"
+                if self.draw_button(label, x, y, 160, 28, BTN_ORANGE, BTN_ORANGE_DARK, KURO, FONT_SMALL):
                     if self.game.clicked_this_frame:
-                        # 找出 inventory 中第一个匹配该名称的物品索引
                         real_idx = next((i for i, it in enumerate(self.game.player.inventory) if it.name == item.name), None)
                         if real_idx is not None:
                             self.game.player_action(item_idx=real_idx)
