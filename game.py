@@ -1,3 +1,5 @@
+import debug
+
 import pygame
 import sys
 import random
@@ -52,7 +54,8 @@ class RPGGame:
         self.ui = GameUI(self)
 
     def setup_initial_player_conditions(self):
-         # This will be called by start_new_game
+        # This will be called by start_new_game
+        self.current_enemy = None
         pass
 
     def add_message(self, message):
@@ -77,13 +80,13 @@ class RPGGame:
             Enemy("野狼", 70, 0, 15, 5, 3, 30, 22,
                   [enemy_skills_map["普通攻击"]],
                   [{"item_obj": self.all_items[2], "chance": 0.1}]),
-            Enemy("强盗", 100, 20, 18, 7, 5, 50, 40,
+            Enemy("强盗", 100, 20, 18, 4, 5, 50, 40,
                   [enemy_skills_map["普通攻击"], enemy_skills_map["强力一击"], enemy_skills_map["破甲击"]],
                   [{"item_obj": self.all_items[1], "chance": 0.2}, {"item_obj": self.all_equipments[4], "chance": 0.08}]),
-            Enemy("森林妖精", 80, 50, 15, 10, 6, 60, 50,
+            Enemy("森林妖精", 80, 50, 15, 10, 5, 60, 50,
                   [enemy_skills_map["普通攻击"], enemy_skills_map["火球术"], enemy_skills_map["治疗术"]],
                   [{"item_obj": self.all_items[3], "chance": 0.15}]),
-            Enemy("石巨人", 250, 0, 30, 20, 10, 150, 100,
+            Enemy("石巨人", 250, 0, 30, 20, 7, 150, 100,
                   [enemy_skills_map["普通攻击"], enemy_skills_map["强力一击"]],
                   [{"item_obj": self.all_equipments[5], "chance": 0.1}]),
         ]
@@ -92,6 +95,8 @@ class RPGGame:
         self.all_shops = ALL_SHOPS
 
     def start_new_game(self):
+        self.setup_initial_player_conditions()
+
         self.player = Character("冒险者", 100, 30, 10, 5, level=1, exp=0, game_skills_ref=self.all_skills)
         self.player.skills.append(self.all_skills[0]) # 普通攻击
         self.player.skills.append(self.all_skills[1]) # 强力一击
@@ -111,6 +116,14 @@ class RPGGame:
         self.scroll_offset_shop = 0
         self.item_page_inv = 0
         self.item_page_shop = 0
+
+        if debug.DEBUG:
+            self.gold += 9000
+            self.player.skills.extend(self.all_skills[2:])
+            for item in self.all_items:
+                self.player.add_item_to_inventory(item)
+            for equip in self.all_equipments:
+                self.player.add_item_to_inventory(equip)
 
     def get_current_location(self):
         return self.all_locations[self.current_location_idx]
@@ -202,6 +215,17 @@ class RPGGame:
             msgs, success = self._apply_skill_effect(self.player, self.current_enemy, skill)
             for m in msgs: self.add_message(m)
             if success:
+                if not self.current_enemy.is_alive():
+                    self.battle_victory()
+                else:
+                    self.end_player_turn_in_battle()
+            return
+
+        if item_idx is not None and 0 <= item_idx < len(self.player.inventory):
+            item = self.player.inventory[item_idx]
+            success, _ = self.use_item(item, self.player)
+            if success:
+                self.show_item_popup = False
                 if not self.current_enemy.is_alive():
                     self.battle_victory()
                 else:
@@ -325,7 +349,6 @@ class RPGGame:
 
         return used, messages
 
-    # TODO 战斗时使用物品还是有问题
     def use_item(self, item, target=None):
         if not item: return False, "无效物品。"
 
@@ -344,7 +367,6 @@ class RPGGame:
                 self.add_message(msg)
             return True, ""
         return False, f"无法使用 {item.name}。"
-
 
     def change_location(self, new_location_idx):
         if 0 <= new_location_idx < len(self.all_locations):
@@ -375,6 +397,7 @@ class RPGGame:
         if loc.get("can_rest"):
             self.player.hp = self.player.max_hp
             self.player.mp = self.player.max_mp
+            self.player.status_effects = []
             self.add_message("你休息了一下，完全恢复了状态！")
 
     def mouse_in_rect(self, x, y, width, height):

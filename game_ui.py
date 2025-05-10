@@ -1,9 +1,11 @@
+import debug
+
 import pygame
 import sys
 from collections import defaultdict
 
 from constants import GameState
-from data import Equipment
+from data import Equipment, Item
 from colors import *
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -11,6 +13,7 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 class GameUI:
     def __init__(self, game):
         self.game = game
+        self.show_item_popup = False
 
     def draw_text(self, text, font, color, x, y, align="left", max_width=None):
         """
@@ -119,7 +122,7 @@ class GameUI:
 
         # --- 清除按钮 ---
         clear_btn_w, clear_btn_h = 50, 24
-        if self.draw_button("清除", x + width - clear_btn_w - 18, y + height - clear_btn_h - 12,
+        if self.draw_button("清除", x + width - clear_btn_w - 24, y + height - clear_btn_h - 12,
                             clear_btn_w, clear_btn_h, BTN_RED, BTN_RED_HOVER, font_to_use=FONT_SMALL):
             if self.game.clicked_this_frame:
                 self.game.message_log.clear()
@@ -168,6 +171,8 @@ class GameUI:
         # Add Load Game Button if implemented
         if self.draw_button("退出游戏", SCREEN_WIDTH//2 - 100, 380, 200, 50, BTN_RED, BTN_RED_HOVER):
             if self.game.clicked_this_frame: pygame.quit(); sys.exit()
+        if self.draw_button("DEBUG", SCREEN_WIDTH - 70, SCREEN_HEIGHT -34, 60, 24, BTN_RED, BTN_RED_HOVER, font_to_use=FONT_SMALL):
+            if self.game.clicked_this_frame: debug.DEBUG = True; print(f"DEBUG: {debug.DEBUG}")
 
     def draw_exploring(self):
         screen.fill(BG_DARK)
@@ -175,6 +180,10 @@ class GameUI:
 
         # 玩家状态栏
         self.draw_player_status_bar(10, 10, 320, 120)
+        pygame.draw.rect(screen, BTN_GRAY_LIGHT, (292, 20, 28, 28), 1)
+        if self.draw_button("i", 292, 20, 28, 28, LIGHT_PANEL, BTN_GRAY, BTN_ORANGE, FONT_SMALL):
+            if self.game.clicked_this_frame:
+                self.game.state = GameState.CHARACTER_INFO
 
         # 地点信息框
         pygame.draw.rect(screen, LIGHT_PANEL, (SCREEN_WIDTH - 330, 10, 320, 120))
@@ -208,15 +217,10 @@ class GameUI:
                 self.game.scroll_offset_inventory = 0
 
         button_y += button_height + button_spacing
-        if self.draw_button("装备", button_x_start, button_y, button_width, button_height, BTN_BLUE, BTN_BLUE_HOVER):
+        if self.draw_button("装备", button_x_start, button_y, button_width, button_height, BTN_ORANGE, BTN_ORANGE_HOVER):
             if self.game.clicked_this_frame:
                 self.game.state = GameState.EQUIPMENT_SCREEN
                 self.game.scroll_offset_equipment = 0
-
-        button_y += button_height + button_spacing
-        if self.draw_button("角色信息", button_x_start, button_y, button_width, button_height, BTN_ORANGE, BTN_ORANGE_HOVER):
-            if self.game.clicked_this_frame:
-                self.game.state = GameState.CHARACTER_INFO
 
         if current_loc.get("shop_idx") is not None:
             button_y += button_height + button_spacing
@@ -229,13 +233,16 @@ class GameUI:
 
         if current_loc.get("can_rest", False):
             button_y += button_height + button_spacing
-            if self.draw_button("休息-20G", button_x_start, button_y, button_width, button_height, BTN_PURPLE, BTN_PURPLE_HOVER):
+            if self.draw_button("休息-20G", button_x_start, button_y, button_width, button_height, 
+                                BTN_PURPLE if self.game.gold >= 20 else LIGHT_PANEL, 
+                                BTN_PURPLE_HOVER if self.game.gold >= 20 else LIGHT_PANEL,
+                                KURO if self.game.gold >= 20 else TEXT_FAINT):
                 if self.game.clicked_this_frame:
                     if self.game.gold >= 20:
                         self.game.gold -= 20
+                        self.game.message_log.clear()
+                        self.game.scroll_offset_message_log = 0
                         self.game.rest_at_location()
-                    else:
-                        self.game.add_message("金币不足，无法休息。")
 
         # 排除当前地点
         other_locations = [
@@ -376,7 +383,8 @@ class GameUI:
             self.draw_text(text, FONT_SMALL, BTN_CYAN, 50, y + 40)
 
             if item:
-                if self.draw_button("卸下", 300, y + 35, 50, 28, BTN_RED, BTN_RED_HOVER, KURO, FONT_SMALL):
+                pygame.draw.rect(screen, BTN_GRAY_LIGHT, (10, y + 35, 28, 28), 1)
+                if self.draw_button("↓", 10, y + 35, 28, 28, BG_DARK, BTN_GRAY, BTN_RED, FONT_SMALL):
                     if self.game.clicked_this_frame:
                         _, msg = self.game.player.unequip(slot)
                         self.game.add_message(msg)
@@ -534,14 +542,7 @@ class GameUI:
 
             # === 状态逻辑切换 ===
             if self.game.state == GameState.INVENTORY:
-                self.game.state = GameState.EXPLORING  # 从物品栏回归探索模式
-            elif self.game.state == GameState.BATTLE:
-                if not self.game.current_enemy.is_alive():
-                    self.game.battle_victory()
-                elif not self.game.player.is_alive():
-                    self.game.game_over()
-                else:
-                    self.game.end_player_turn_in_battle()
+                self.game.state = GameState.EXPLORING
 
             # 若物品数量减少，页数也应回退
             if len(self.game.player.inventory) <= self.game.item_page_inv * self.game.items_per_page and self.game.item_page_inv > 0:
@@ -590,7 +591,7 @@ class GameUI:
         y += 20
         self.draw_text("技能列表：", FONT_MEDIUM, TEXT_LIGHT, x2, y)
         y += 35
-        for skill in self.game.player.skills[:6]:
+        for skill in self.game.player.skills[1:7]:
             self.draw_text(f"- {skill.name} (MP: {skill.mp_cost})", FONT_SMALL, BTN_CYAN, x2, y)
             self.draw_text(f"  {skill.description}", FONT_SMALL, TEXT_FAINT, x2 + 10, y + 20, max_width=SCREEN_WIDTH - x2 - 20)
             y += 45
@@ -638,29 +639,34 @@ class GameUI:
             skill_x, skill_y = 20, SCREEN_HEIGHT - 300
             self.draw_text("技能:", FONT_MEDIUM, TEXT_LIGHT, skill_x + 75, skill_y - 25, "center")
 
+            # 排除第一个技能（通常是“攻击”）
+            filtered_skills = self.game.player.skills[1:]
+
             # 技能分页逻辑
             skills_per_page = 3
             start = self.game.scroll_offset_skills * skills_per_page
-            visible_skills = self.game.player.skills[start:start + skills_per_page]
+            visible_skills = filtered_skills[start:start + skills_per_page]
 
             for i, skill in enumerate(visible_skills):
-                idx = start + i
+                true_idx = self.game.player.skills.index(skill)
                 label = f"{skill.name}" + (f"-MP:{skill.mp_cost}" if skill.mp_cost else '')
                 btn_color = BTN_CYAN if self.game.player.mp >= skill.mp_cost else LIGHT_PANEL
                 hover_color = BTN_CYAN_HOVER if btn_color == BTN_CYAN else LIGHT_PANEL
+                font_color = KURO if btn_color == BTN_CYAN else TEXT_FAINT
 
-                if self.draw_button(label, skill_x, skill_y + i * 45, 200, 40, btn_color, hover_color):
+                if self.draw_button(label, skill_x, skill_y + i * 45, 200, 40, btn_color, hover_color, font_color):
                     if self.game.clicked_this_frame and self.game.player.mp >= skill.mp_cost:
-                        self.game.player_action(skill_idx=idx)
+                        self.game.player_action(skill_idx=true_idx)
+                        self.show_item_popup = False
 
             # 技能翻页按钮
             total_pages = (len(self.game.player.skills) - 1) // skills_per_page + 1
             if total_pages > 1:
                 if self.game.scroll_offset_skills > 0:
-                    if self.draw_button("↑", skill_x + 210, skill_y, 40, 40, BTN_BLUE, BTN_BLUE_HOVER):
+                    if self.draw_button("↑", skill_x + 125, skill_y - 35, 28, 28, BTN_BLUE, BTN_BLUE_HOVER, KURO, FONT_SMALL):
                         if self.game.clicked_this_frame: self.game.scroll_offset_skills -= 1
                 if self.game.scroll_offset_skills < total_pages - 1:
-                    if self.draw_button("↓", skill_x + 210, skill_y + 45, 40, 40, BTN_BLUE, BTN_BLUE_HOVER):
+                    if self.draw_button("↓", skill_x + 160, skill_y - 35, 28, 28, BTN_BLUE, BTN_BLUE_HOVER, KURO, FONT_SMALL):
                         if self.game.clicked_this_frame: self.game.scroll_offset_skills += 1
 
             # 其他行动
@@ -668,11 +674,56 @@ class GameUI:
             if self.draw_button("攻击", action_x, skill_y, 200, 40, BTN_RED, BTN_RED_HOVER):
                 if self.game.clicked_this_frame:
                     self.game.player_action(skill_idx=0)
+                    self.show_item_popup = False
 
-            if self.draw_button("物品", action_x, skill_y + 45, 200, 40, BTN_ORANGE, BTN_ORANGE_HOVER):
+            if self.show_item_popup:
+                self.draw_item_popup()
+            if self.draw_button("物品", action_x, skill_y + 45, 200, 40,
+                                BTN_ORANGE if not self.show_item_popup else LIGHT_PANEL,
+                                BTN_ORANGE_HOVER if not self.show_item_popup else LIGHT_PANEL,
+                                KURO if not self.show_item_popup else TEXT_FAINT):
                 if self.game.clicked_this_frame:
-                    self.game.state = GameState.INVENTORY
+                    self.show_item_popup = True
 
             if self.draw_button("逃跑", action_x, skill_y + 90, 200, 40, BTN_GREEN, BTN_GREEN_HOVER):
                 if self.game.clicked_this_frame:
                     self.game.attempt_escape_battle()
+                    self.show_item_popup = False
+
+    def draw_item_popup(self):
+        popup_rect = pygame.Rect(250, 200, 400, 300)
+        pygame.draw.rect(screen, ONE_DARK, popup_rect)
+        pygame.draw.rect(screen, TEXT_FAINT, popup_rect, 1)
+
+        y_offset = 170
+        # usable_items = [item for item in self.game.player.inventory if item.can_use_in_battle()]
+        items_to_display = [item for item in self.game.player.inventory if isinstance(item, Item)]
+
+        # --- 合并相似物品（根据 item.name 分组） ---
+        grouped_items = defaultdict(list)
+        for item in items_to_display:
+            grouped_items[item.name].append(item)
+
+        # 将合并后的条目转为列表
+        merged_items = []
+        for name, group in grouped_items.items():
+            rep_item = group[0]  # 使用第一个作为代表
+            rep_item._quantity = len(group)  # 附加数量属性
+            merged_items.append(rep_item)
+
+        if not merged_items:
+            self.draw_text("空空如也。", FONT_MEDIUM, TEXT_LIGHT, popup_rect.centerx, popup_rect.centery, "center")
+        else:
+            for idx, item in enumerate(merged_items):
+                if self.draw_button(f"{item.name} x{getattr(item, '_quantity', 1)}", 270, y_offset + idx * 38 + 50, 360, 28, BTN_GREEN, BTN_GREEN_HOVER, KURO, FONT_SMALL):
+                    if self.game.clicked_this_frame:
+                        # 找出 inventory 中第一个匹配该名称的物品索引
+                        real_idx = next((i for i, it in enumerate(self.game.player.inventory) if it.name == item.name), None)
+                        if real_idx is not None:
+                            self.game.player_action(item_idx=real_idx)
+                            self.show_item_popup = False
+
+        # 返回按钮
+        if self.draw_button("返回", popup_rect.centerx - 25, popup_rect.bottom - 34, 50, 24, BTN_RED, BTN_RED_HOVER, KURO, FONT_SMALL):
+            if self.game.clicked_this_frame:
+                self.show_item_popup = False

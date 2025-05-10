@@ -1,5 +1,4 @@
 from enum import Enum, auto
-
 from data import Skill, Item, Equipment, Shop
 
 # 游戏状态
