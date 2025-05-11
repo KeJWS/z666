@@ -2,7 +2,6 @@ import debug
 
 import pygame
 import sys
-from pprint import pprint
 from collections import defaultdict
 
 from constants import GameState
@@ -678,8 +677,8 @@ class GameUI:
         pygame.draw.rect(screen, BTN_GRAY_LIGHT, (panel_rect.right - 38, panel_rect.y + 10, 28, 28), 1)
         if self.draw_button("i", panel_rect.right - 38, panel_rect.y + 10, 28, 28, LIGHT_PANEL, BTN_GRAY, BTN_ORANGE, FONT_SMALL):
             if self.game.clicked_this_frame:
-                print("\n")
-                pprint(vars(enemy))
+                from test.print_details import print_enemy_details
+                print_enemy_details(enemy)
 
     def draw_player_actions_panel(self):
         skill_x, skill_y = 20, SCREEN_HEIGHT - 300

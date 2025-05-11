@@ -42,7 +42,6 @@ class RPGGame:
         self.all_skills = []
         self.all_items = []
         self.all_equipments = []
-        self.all_enemies = []
         self.all_locations = []
         self.all_shops = []
 
@@ -66,7 +65,7 @@ class RPGGame:
         self.all_skills = cs.ALL_SKILLS
         self.all_items = cs.ALL_ITEMS
         self.all_equipments = cs.ALL_EQUIPMENTS
-        self.all_enemies = cs.ALL_ENEMIES
+        self.enemy_map = cs.game_data["enemy_map"]
         self.all_locations = cs.ALL_LOCATIONS
         self.all_shops = cs.ALL_SHOPS
 
@@ -74,13 +73,12 @@ class RPGGame:
         self.setup_initial_player_conditions()
 
         self.player = Character("冒险者", 100, 30, 10, 5, level=1, exp=0, game_skills_ref=self.all_skills)
-        self.player.skills.append(self.all_skills[0]) # 普通攻击
-        self.player.skills.append(self.all_skills[1]) # 强力一击
+        self.player.skills.extend(self.all_skills[:2])  # 添加普通攻击与强力一击
 
-        self.player.add_item_to_inventory(self.all_items[0], quantity=3)
-        self.player.add_item_to_inventory(self.all_items[2], quantity=1)
-
-        start_weapon = self.all_equipments[0] #新手剑
+        # 初始物品与装备
+        for item, qty in [(self.all_items[0], 3), (self.all_items[2], 1)]:
+            self.player.add_item_to_inventory(item, quantity=qty)
+        start_weapon = self.all_equipments[0]
         self.player.add_item_to_inventory(start_weapon)
         msg_equip = self.player.equip(start_weapon)[1]
 
@@ -88,10 +86,10 @@ class RPGGame:
         self.current_location_idx = 0
         self.message_log = ["欢迎来到 RPG 文字冒险游戏!", msg_equip, "你的旅程从这里开始。"]
         self.state = GameState.EXPLORING
-        self.scroll_offset_inventory = 0
-        self.scroll_offset_shop = 0
-        self.item_page_inv = 0
-        self.item_page_shop = 0
+
+        # 滚动偏移初始化
+        self.scroll_offset_inventory = self.scroll_offset_shop = 0
+        self.item_page_inv = self.item_page_shop = 0
 
         if debug.DEBUG:
             self.gold += 9000
@@ -110,12 +108,27 @@ class RPGGame:
             self.add_message("这里似乎很安全，没有敌人。")
             return
 
-        template = self.all_enemies[random.choice(loc_data["enemies"])]
-        self.current_enemy = template.clone()
-        self.add_message(f"遭遇敌人: {self.current_enemy.name} (等级 {self.current_enemy.level})!")
+        enemy_name = random.choice(loc_data["enemies"])
+        self.current_enemy = self.enemy_map[enemy_name].clone()
+        enemy = self.current_enemy
+
+        self.add_message(f"遭遇敌人: {enemy.name} (等级 {enemy.level})!")
+        self._enemy_try_equip(enemy)
+
         self.state = GameState.BATTLE
         self.battle_turn = "player"
         self.battle_rewards = {"exp": 0, "gold": 0, "items": []}
+
+    def _enemy_try_equip(self, enemy):
+        for entry in getattr(enemy, "potential_equips", []):
+            if random.random() < entry.get("chance", 0.2):
+                equip = entry["equip_obj"]
+                enemy.equip(equip)
+                enemy.gold_reward += equip.price
+                enemy.exp_reward += 25 * enemy.level
+                enemy.hp = enemy.max_hp
+                enemy.mp = enemy.max_mp
+                self.add_message(f"{enemy.name} 装备了 {equip.name}！")
 
     def _create_status_effect(self, skill, caster=None):
         name = skill.status_effect_name or skill.name
@@ -137,11 +150,14 @@ class RPGGame:
         caster.use_mp(skill.mp_cost)
         messages.append(f"{caster.name} 使用了 {skill.name}!")
 
-        # 主效果应用
-        if skill.skill_type == "damage":
+        # 技能类型处理
+        if skill.skill_type in {"damage", "lifesteal"}:
             damage = int(caster.attack * skill.damage_multiplier)
-            actual = target.take_damage(damage)
-            messages.append(f"{target.name} 受到 {actual} 点伤害。")
+            dealt = target.take_damage(damage)
+            messages.append(f"{target.name} 受到 {dealt} 点伤害。")
+            if skill.skill_type == "lifesteal":
+                healed = caster.heal(int(dealt * skill.effect_value))
+                messages.append(f"{caster.name} 吸取了 {healed} 点生命！")
 
         elif skill.skill_type == "heal":
             healed = caster.heal(skill.effect_value)
@@ -156,12 +172,6 @@ class RPGGame:
             effect = self._create_status_effect(skill)
             target.add_status_effect(effect)
             messages.append(f"{target.name} 受到 {effect.name} 效果！")
-
-        elif skill.skill_type == "lifesteal":
-            damage = int(caster.attack * skill.damage_multiplier)
-            dealt = target.take_damage(damage)
-            healed = caster.heal(int(dealt * skill.effect_value))
-            messages.append(f"{target.name} 受到 {dealt} 点伤害，{caster.name} 吸取了 {healed} 点生命！")
 
         # 附加状态效果（如燃烧）
         if skill.status_effect_name and skill.skill_type in ("damage", "debuff_enemy"):

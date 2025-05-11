@@ -216,13 +216,14 @@ class Character:
                     break
 
 class Enemy(Character):
-    def __init__(self, name, max_hp, max_mp, attack, defense, level, exp_reward, gold_reward, skills_refs=None, drop_table=None, description=""):
+    def __init__(self, name, max_hp, max_mp, attack, defense, level, exp_reward, gold_reward, skills_refs=None, drop_table=None, description="", potential_equips=None):
         super().__init__(name, max_hp, max_mp, attack, defense, level)
         self.exp_reward = exp_reward
         self.gold_reward = gold_reward
         self.skills = skills_refs or []
         self.drop_table = drop_table or []
         self.description = description
+        self.potential_equips = potential_equips or []
 
     def choose_action(self, target_player):
         from data import Skill
@@ -235,7 +236,7 @@ class Enemy(Character):
         if offensives and random.random() < 0.7:
             return random.choice(offensives)
 
-        return next((s for s in self.skills if s.mp_cost == 0), Skill("猛击", 1.0, 0, "敌人胡乱攻击", "damage"))
+        return next((s for s in self.skills if s.mp_cost == 0), Skill("猛击", 1.2, 0, "敌人胡乱攻击", "damage"))
 
     def clone(self):
         new_enemy = Enemy(
@@ -249,6 +250,7 @@ class Enemy(Character):
             gold_reward=self.gold_reward,
             skills_refs=self.skills[:],
             drop_table=self.drop_table[:],
-            description=self.description
+            description=self.description,
+            potential_equips=self.potential_equips[:]
         )
         return new_enemy
