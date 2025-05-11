@@ -260,21 +260,38 @@ class GameUI:
                     self.game.change_location(i)
             loc_btn_y_start += 35 + 10
 
-    def _draw_generic_list_menu(self, title, items_to_display, item_handler_func, back_state, current_page, scroll_offset_attr_name, items_per_page=5, item_price_func=None, item_desc_func=None):
+    def merge_similar_items(self, items):
+        grouped_items = defaultdict(list)
+        for item in items:
+            grouped_items[item.name].append(item)
+
+        merged_items = []
+        for name, group in grouped_items.items():
+            rep_item = group[0]
+            rep_item._quantity = len(group)
+            merged_items.append(rep_item)
+
+        return merged_items
+
+    def _draw_multicolumn(self, items, fixed, count, start_x, start_y, x_offset, y_offset, callback):
+        """通用多列布局函数"""
+        for idx, item in enumerate(items):
+            if fixed == 'columns':
+                col = idx % count
+                row = idx // count
+            elif fixed == 'rows':
+                col = idx // count
+                row = idx % count
+            x = start_x + col * x_offset
+            y = start_y + row * y_offset
+            callback(item, idx, x, y)
+
+    def _draw_generic_list_menu(self, title, items_to_display, item_handler_func, back_state, current_page,
+                                scroll_offset_attr_name, items_per_page=5, item_price_func=None, item_desc_func=None):
         screen.fill(BG_DARK)
         self.draw_text(title, FONT_LARGE, TEXT_LIGHT, SCREEN_WIDTH // 2, 30, "center")
 
-        # --- 合并相似物品（根据 item.name 分组） ---
-        grouped_items = defaultdict(list)
-        for item in items_to_display:
-            grouped_items[item.name].append(item)
-
-        # 将合并后的条目转为列表
-        merged_items = []
-        for name, group in grouped_items.items():
-            rep_item = group[0]  # 使用第一个作为代表
-            rep_item._quantity = len(group)  # 附加数量属性
-            merged_items.append(rep_item)
+        merged_items = self.merge_similar_items(items_to_display)
 
         # --- 分页 ---
         start_idx = current_page * (items_per_page * 2)  # 每页两列
@@ -284,35 +301,35 @@ class GameUI:
         if not merged_items:
             self.draw_text("空空如也。", FONT_MEDIUM, TEXT_LIGHT, SCREEN_WIDTH // 2, 120, "center")
         else:
-            # 多列布局
-            col_x = [60, SCREEN_WIDTH // 2 + 20]
+            col_start_x = 60
             col_width = SCREEN_WIDTH // 2 - 100
             button_height = 44
-            v_spacing = 76
-            base_y = 100
 
-            for i, item in enumerate(visible_items):
-                col = i % 2
-                row = i // 2
-                x = col_x[col]
-                y = base_y + row * v_spacing
-
-                # 显示物品名 + 数量 + 价格
+            def draw_callback(item, idx, x, y):
+                # 显示物品名及数量
                 item_count = getattr(item, '_quantity', 1)
-                item_text = f"{item.name} x{item_count}" if item_count > 1 else f"{item.name}"
+                item_text = f"{item.name} x{item_count}" if item_count > 1 else item.name
                 if item_price_func:
                     item_text += f" ({item_price_func(item)}G)"
-
                 if self.draw_button(item_text, x, y, col_width, button_height, BTN_GREEN, BTN_GREEN_HOVER, KURO, FONT_MEDIUM):
                     if self.game.clicked_this_frame:
                         item_handler_func(item)
-
-                # 描述文字显示在按钮下方
+                # 显示描述信息
                 desc = item_desc_func(item) if item_desc_func else getattr(item, 'description', None)
                 if desc:
                     self.draw_text(desc, FONT_SMALL, TEXT_FAINT, x + 6, y + button_height + 2, max_width=col_width - 12)
 
-        # 分页导航
+            self._draw_multicolumn(
+                items=visible_items,
+                fixed='columns',
+                count=2,
+                start_x=60,
+                start_y=100,
+                x_offset=(SCREEN_WIDTH // 2 + 20) - col_start_x,
+                y_offset=76,
+                callback=draw_callback
+                )
+
         total_pages = (len(merged_items) - 1) // (items_per_page * 2) + 1
         if total_pages > 1:
             self.draw_text(f"页: {current_page + 1}/{total_pages}", FONT_MEDIUM, TEXT_FAINT, SCREEN_WIDTH // 2, SCREEN_HEIGHT - 130, "center")
@@ -325,7 +342,6 @@ class GameUI:
                     if self.game.clicked_this_frame:
                         setattr(self.game, scroll_offset_attr_name, current_page + 1)
 
-        # 返回按钮
         if self.draw_button("返回", SCREEN_WIDTH // 2 - 75, SCREEN_HEIGHT - 80, 150, 34, BTN_RED, BTN_RED_HOVER):
             if self.game.clicked_this_frame:
                 self.game.state = back_state
@@ -334,8 +350,7 @@ class GameUI:
                 elif scroll_offset_attr_name == "item_page_shop":
                     self.game.item_page_shop = 0
 
-    def draw_battle_reward_screen(self):
-        # 战斗胜利奖励界面
+    def draw_battle_reward_screen(self): # 战斗胜利奖励界面
         screen.fill(BG_DARK)
         self.draw_text("战斗胜利！", FONT_LARGE, BTN_ORANGE, SCREEN_WIDTH // 2, 100, "center")
 
@@ -356,8 +371,7 @@ class GameUI:
             if self.game.clicked_this_frame:
                 self.game.process_battle_rewards()
 
-    def draw_game_over(self):
-        # 游戏结束界面
+    def draw_game_over(self): # 游戏结束界面
         screen.fill(SUMI)
         self.draw_text("游戏结束", FONT_LARGE, BTN_RED, SCREEN_WIDTH // 2, 200, "center")
         if self.game.player:
@@ -375,13 +389,10 @@ class GameUI:
 
         y = 80
         self.draw_text("当前装备：", FONT_MEDIUM, TEXT_LIGHT, 150, y, "center")
-
-        # 显示角色当前装备
         for slot, item in self.game.player.equipment.items():
             slot_name_map = {'weapon': "武器", 'armor': "护甲", 'helmet': "头盔", 'accessory': "饰品"}
             text = f"{slot_name_map.get(slot, slot)}: {item if item else '无'}"
             self.draw_text(text, FONT_SMALL, BTN_CYAN, 50, y + 40)
-
             if item:
                 pygame.draw.rect(screen, BTN_GRAY_LIGHT, (10, y + 35, 28, 28), 1)
                 if self.draw_button("↓", 10, y + 35, 28, 28, BG_DARK, BTN_GRAY, BTN_RED, FONT_SMALL):
@@ -392,20 +403,13 @@ class GameUI:
 
         self.draw_player_status_bar(SCREEN_WIDTH - 330, 10, 320, 120)
 
-        # --- 合并可装备物品 ---
         equippable = [it for it in self.game.player.inventory if isinstance(it, Equipment)]
-        grouped = defaultdict(list)
-        for item in equippable:
-            grouped[item.name].append(item)
-
-        merged_items = []
-        for name, group in grouped.items():
-            rep = group[0]
-            rep._quantity = len(group)
-            merged_items.append(rep)
+        merged_items = self.merge_similar_items(equippable)
 
         # --- 多列显示 ---
-        y_offset = y + 60
+        col_start_x = 60
+        col_width = SCREEN_WIDTH // 2 - 100
+        button_height = 44
         items_per_col = 3  # 每列 3 个按钮
         items_per_page = items_per_col * 2  # 每页两列
         page = self.game.scroll_offset_equipment
@@ -413,39 +417,34 @@ class GameUI:
         end = start + items_per_page
         visible_items = merged_items[start:end]
 
-        if not visible_items:
-            self.draw_text("没有可装备的物品。", FONT_MEDIUM, TEXT_FAINT, SCREEN_WIDTH // 2, y_offset + 30, "center")
-        else:
-            col_x = [60, SCREEN_WIDTH // 2 + 20]
-            col_width = SCREEN_WIDTH // 2 - 100
-            button_height = 44
-            v_spacing = 76
+        def equip_callback(item, idx, x, y):
+            count = getattr(item, '_quantity', 1)
+            btn_text = f"{item.name} x{count}" if count > 1 else item.name
 
-            for i, item in enumerate(visible_items):
-                col = i % 2
-                row = i // 2
-                x = col_x[col]
-                y_pos = y_offset + row * v_spacing
+            pygame.draw.rect(screen, LIGHT_PANEL, (x, y, col_width, button_height))
+            pygame.draw.rect(screen, TEXT_LIGHT, (x, y, col_width, button_height), 1)
+            self.draw_text(btn_text, FONT_MEDIUM, TEXT_LIGHT, x + 20, y + 5, max_width=col_width)
 
-                count = getattr(item, '_quantity', 1)
-                btn_text = f"{item.name} x{count}" if count > 1 else item.name
+            if self.draw_button("装备", x + col_width - 60, y + button_height // 2 - 14, 50, 28, BTN_PURPLE, BTN_PURPLE_HOVER, KURO, FONT_SMALL):
+                if self.game.clicked_this_frame:
+                    _, msg = self.game.player.equip(item)
+                    self.game.add_message(msg)
+                    if len(merged_items) <= self.game.scroll_offset_equipment * items_per_page and self.game.scroll_offset_equipment > 0:
+                        self.game.scroll_offset_equipment -= 1
 
-                # 装备面板框
-                pygame.draw.rect(screen, LIGHT_PANEL, (x, y_pos, col_width, button_height))
-                pygame.draw.rect(screen, TEXT_LIGHT, (x, y_pos, col_width, button_height), 1)
-                self.draw_text(btn_text, FONT_MEDIUM, TEXT_LIGHT, x + 20, y_pos + 5, max_width=col_width)
+            if getattr(item, "description", None):
+                self.draw_text(item.description, FONT_SMALL, TEXT_FAINT, x + 6, y + button_height + 2, max_width=col_width - 12)
 
-                # 装备按钮
-                if self.draw_button("装备", x + col_width - 60, y_pos + button_height // 2 - 14, 50, 28, BTN_PURPLE, BTN_PURPLE_HOVER, KURO, FONT_SMALL):
-                    if self.game.clicked_this_frame:
-                        _, msg = self.game.player.equip(item)
-                        self.game.add_message(msg)
-                        if len(merged_items) <= self.game.scroll_offset_equipment * items_per_page and self.game.scroll_offset_equipment > 0:
-                            self.game.scroll_offset_equipment -= 1
-
-                # 描述信息
-                if getattr(item, "description", None):
-                    self.draw_text(item.description, FONT_SMALL, TEXT_FAINT, x + 6, y_pos + button_height + 2, max_width=col_width - 12)
+        self._draw_multicolumn(
+                items=visible_items,
+                fixed='columns',
+                count=2,
+                start_x=60,
+                start_y=y+60,
+                x_offset=(SCREEN_WIDTH // 2 + 20) - col_start_x,
+                y_offset=76,
+                callback=equip_callback
+                )
 
         # --- 分页 ---
         total_pages = (len(merged_items) - 1) // items_per_page + 1
@@ -524,82 +523,120 @@ class GameUI:
                     self.game.shop_tab = "buy"
 
     def draw_inventory(self):
-        """绘制物品栏界面，根据当前游戏状态决定使用逻辑"""
+        """绘制物品栏界面"""
         def handle_item_use_from_inv(item_obj):
-            """使用物品时的处理逻辑（根据战斗状态与目标判断）"""
-            if isinstance(item_obj, Equipment):
-                _, msg = self.game.player.equip(item_obj)
-                self.game.add_message(msg)
-                return
+            self._handle_item_use(item_obj)
 
-            # 目标选择：默认对玩家使用，若为敌方目标则切换
-            target = self.game.current_enemy if self.game.state == GameState.BATTLE and item_obj.target == "enemy" else self.game.player
-
-            success, message = self.game.use_item(item_obj, target)
-
-            if not success:
-                return
-
-            # === 状态逻辑切换 ===
-            if self.game.state == GameState.INVENTORY:
-                self.game.state = GameState.EXPLORING
-
-            # 若物品数量减少，页数也应回退
-            if len(self.game.player.inventory) <= self.game.item_page_inv * self.game.items_per_page and self.game.item_page_inv > 0:
-                self.game.item_page_inv -= 1
-
-        # 返回状态设定：若当前敌人存在且非探索状态，则退回战斗界面，否则探索界面
         back_state = GameState.BATTLE if self.game.current_enemy and self.game.state != GameState.EXPLORING else GameState.EXPLORING
-        # 绘制物品栏（统一 UI 面板调用）
-        self._draw_generic_list_menu("物品栏", self.game.player.inventory, handle_item_use_from_inv, back_state, self.game.item_page_inv, "item_page_inv", self.game.items_per_page)
+        self._draw_generic_list_menu(
+                "物品栏",
+                self.game.player.inventory,
+                handle_item_use_from_inv,
+                back_state,
+                self.game.item_page_inv,
+                "item_page_inv",
+                self.game.items_per_page
+            )
+
+    def _handle_item_use(self, item_obj):
+        """统一处理物品使用逻辑"""
+        if isinstance(item_obj, Equipment):
+            _, msg = self.game.player.equip(item_obj)
+            self.game.add_message(msg)
+            return
+
+        target = (
+            self.game.current_enemy
+            if self.game.state == GameState.BATTLE and item_obj.target == "enemy"
+            else self.game.player
+        )
+        success, message = self.game.use_item(item_obj, target)
+        if not success:
+            return
+
+        if self.game.state == GameState.INVENTORY:
+            self.game.state = GameState.EXPLORING
+
+        # 若当前页为空则自动回退一页
+        inv = self.game.player.inventory
+        if len(inv) <= self.game.item_page_inv * self.game.items_per_page and self.game.item_page_inv > 0:
+            self.game.item_page_inv -= 1
 
     def draw_character_info_screen(self):
         """绘制角色信息界面"""
         screen.fill(BG_DARK)
         self.draw_text("角色信息", FONT_LARGE, TEXT_LIGHT, SCREEN_WIDTH // 2, 30, "center")
-        if not self.game.player:
-            return
 
+        self._draw_character_stats()
+        self._draw_equipment_info()
+        self._draw_skill_list()
+
+        if self.draw_button("返回", SCREEN_WIDTH // 2 - 75, SCREEN_HEIGHT - 80, 150, 40, BTN_RED, BTN_RED_HOVER):
+            if self.game.clicked_this_frame:
+                self.game.state = GameState.EXPLORING
+
+    # ===================== 私有辅助方法_始 =====================
+
+    def _draw_character_stats(self):
+        """绘制玩家基本信息"""
         y = 80
-        x1, x2 = 50, 400
-
+        x = 50
+        p = self.game.player
         info = [
-            f"名字: {self.game.player.name}",
-            f"等级: {self.game.player.level}",
-            f"经验: {self.game.player.exp} / {self.game.player.exp_to_next_level}",
+            f"名字: {p.name}",
+            f"等级: {p.level}",
+            f"经验: {p.exp} / {p.exp_to_next_level}",
             f"金币: {self.game.gold}",
-            f"生命值: {self.game.player.hp} / {self.game.player.max_hp}",
-            f"法力值: {self.game.player.mp} / {self.game.player.max_mp}",
-            f"攻击力: {self.game.player.attack} (基础: {self.game.player.base_attack})",
-            f"防御力: {self.game.player.defense} (基础: {self.game.player.base_defense})"
+            f"生命值: {p.hp} / {p.max_hp}",
+            f"法力值: {p.mp} / {p.max_mp}",
+            f"攻击力: {p.attack} (基础: {p.base_attack})",
+            f"防御力: {p.defense} (基础: {p.base_defense})"
         ]
-        colors = [TEXT_LIGHT, SHIRONEZUMI, SHIRONEZUMI, BTN_ORANGE, BTN_GREEN, BTN_BLUE, SHIRONEZUMI, SHIRONEZUMI]
+        colors = [
+            TEXT_LIGHT, SHIRONEZUMI, SHIRONEZUMI, BTN_ORANGE,
+            BTN_GREEN, BTN_BLUE, SHIRONEZUMI, SHIRONEZUMI
+        ]
 
         for line, color in zip(info, colors):
-            self.draw_text(line, FONT_MEDIUM, color, x1, y)
+            self.draw_text(line, FONT_MEDIUM, color, x, y)
             y += 35 if "金币" not in line else 50
 
+    def _draw_equipment_info(self):
+        """绘制当前装备信息"""
         y = 80
-        self.draw_text("当前装备:", FONT_MEDIUM, TEXT_LIGHT, x2, y)
+        x = 400
+        self.draw_text("当前装备:", FONT_MEDIUM, TEXT_LIGHT, x, y)
         y += 35
+
         slot_name_map = {'weapon': "武器", 'armor': "护甲", 'helmet': "头盔", 'accessory': "饰品"}
         for slot, item in self.game.player.equipment.items():
             name = item.name if item else "无"
-            self.draw_text(f"{slot_name_map.get(slot, slot)}: {name}", FONT_SMALL, TEXT_FAINT, x2, y)
+            label = slot_name_map.get(slot, slot)
+            self.draw_text(f"{label}: {name}", FONT_SMALL, TEXT_FAINT, x, y)
             y += 25
 
-        y += 20
-        self.draw_text("技能列表：", FONT_MEDIUM, TEXT_LIGHT, x2, y)
+    def _draw_skill_list(self):
+        """绘制技能列表"""
+        y = 260
+        x = 400
+        self.draw_text("技能列表：", FONT_MEDIUM, TEXT_LIGHT, x, y)
         y += 35
+
         for skill in self.game.player.skills[1:7]:
-            self.draw_text(f"- {skill.name} (MP: {skill.mp_cost})", FONT_SMALL, BTN_CYAN, x2, y)
-            self.draw_text(f"  {skill.description}", FONT_SMALL, TEXT_FAINT, x2 + 10, y + 20, max_width=SCREEN_WIDTH - x2 - 20)
+            self.draw_text(f"- {skill.name} (MP: {skill.mp_cost})", FONT_SMALL, BTN_CYAN, x, y)
+            self.draw_text(
+                f"  {skill.description}",
+                FONT_SMALL,
+                TEXT_FAINT,
+                x + 10,
+                y + 20,
+                max_width=SCREEN_WIDTH - x - 20
+            )
             y += 45
             if y > SCREEN_HEIGHT - 100:
                 break
 
-        if self.draw_button("返回", SCREEN_WIDTH // 2 - 75, SCREEN_HEIGHT - 80, 150, 40, BTN_RED, BTN_RED_HOVER):
-            if self.game.clicked_this_frame: self.game.state = GameState.EXPLORING
+    # ===================== 私有辅助方法_终 =====================
 
     def draw_battle(self):
         screen.fill(BG_DARK if self.game.current_enemy else KURO)
@@ -695,34 +732,12 @@ class GameUI:
         pygame.draw.rect(screen, TEXT_FAINT, popup_rect, 1)
 
         items_to_display = [item for item in self.game.player.inventory if isinstance(item, Item)]
-
-        # 合并相似物品
-        grouped_items = defaultdict(list)
-        for item in items_to_display:
-            grouped_items[item.name].append(item)
-
-        merged_items = []
-        for name, group in grouped_items.items():
-            rep_item = group[0]
-            rep_item._quantity = len(group)
-            merged_items.append(rep_item)
+        merged_items = self.merge_similar_items(items_to_display)
 
         if not merged_items:
             self.draw_text("空空如也。", FONT_MEDIUM, TEXT_LIGHT, popup_rect.centerx, popup_rect.centery, "center")
         else:
-            # --- 多列布局 ---
-            items_per_column = 7
-            column_width = 180
-            row_height = 34
-            start_x = popup_rect.left + 30
-            start_y = popup_rect.top + 20
-
-            for idx, item in enumerate(merged_items):
-                col = idx // items_per_column
-                row = idx % items_per_column
-                x = start_x + col * column_width
-                y = start_y + row * row_height
-
+            def popup_callback(item, idx, x, y):
                 label = f"{item.name} x{getattr(item, '_quantity', 1)}"
                 if self.draw_button(label, x, y, 160, 28, BTN_ORANGE, BTN_ORANGE_DARK, KURO, FONT_SMALL):
                     if self.game.clicked_this_frame:
@@ -731,7 +746,17 @@ class GameUI:
                             self.game.player_action(item_idx=real_idx)
                             self.show_item_popup = False
 
-        # 返回按钮
+            self._draw_multicolumn(
+                items=merged_items,
+                fixed='rows',
+                count=7,
+                start_x=popup_rect.left + 30,
+                start_y=popup_rect.top + 20,
+                x_offset=180,
+                y_offset=34,
+                callback=popup_callback
+                )
+
         if self.draw_button("返回", popup_rect.centerx - 25, popup_rect.bottom - 34, 50, 24, BTN_RED, BTN_RED_HOVER, KURO, FONT_SMALL):
             if self.game.clicked_this_frame:
                 self.show_item_popup = False
