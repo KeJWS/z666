@@ -1,0 +1,61 @@
+
+[items]
+
+[[items.heal]]
+name = "小型治疗药水"
+type = "heal_hp"
+value = 50
+description = "恢复50点生命值"
+price = 20
+
+[[items.heal]]
+name = "中型治疗药水"
+type = "heal_hp"
+value = 120
+description = "恢复120点生命值"
+price = 50
+
+[[items.heal]]
+name = "小型法力药水"
+type = "heal_mp"
+value = 30
+description = "恢复30点法力值"
+price = 30
+
+[[items.heal]]
+name = "中型法力药水"
+type = "heal_mp"
+value = 80
+description = "恢复80点法力值"
+price = 70
+
+[[items.cure]]
+name = "解毒草"
+type = "cure_status"
+value = 0
+description = "解除中毒状态"
+price = 40
+
+[[items.buff]]
+name = "磨刀石"
+type = "buff_attack"
+value = 5
+description = "攻击小幅提升3回合"
+price = 60
+duration = 3
+
+[[items.buff]]
+name = "硬化剂"
+type = "buff_defense"
+value = 5
+description = "防御小幅提升3回合"
+price = 60
+duration = 3
+
+[[items.damage]]
+name = "炸弹"
+type = "damage_enemy"
+value = 75
+description = "对敌人造成75点伤害"
+price = 100
+target = "enemy"

@@ -1,0 +1,122 @@
+
+[equipments]
+
+[[equipments.weapon]]
+name = "新手剑"
+type = "weapon"
+atk = 5
+def = 0
+hp = 0
+mp = 0
+description = "给新手准备的剑"
+price = 50
+
+[[equipments.weapon]]
+name = "铁剑"
+type = "weapon"
+atk = 10
+def = 0
+hp = 0
+mp = 0
+description = "标准的铁剑"
+price = 200
+
+[[equipments.weapon]]
+name = "精灵之刃"
+type = "weapon"
+atk = 18
+def = 2
+hp = 10
+mp = 10
+description = "轻巧而锋利的剑"
+price = 750
+
+[[equipments.armor]]
+name = "皮甲"
+type = "armor"
+atk = 0
+def = 3
+hp = 10
+mp = 0
+description = "简单的皮制护甲"
+price = 70
+
+[[equipments.armor]]
+name = "锁子甲"
+type = "armor"
+atk = 0
+def = 8
+hp = 20
+mp = 0
+description = "提供良好保护的锁子甲"
+price = 245
+
+[[equipments.armor]]
+name = "秘银甲"
+type = "armor"
+atk = 2
+def = 15
+hp = 50
+mp = 20
+description = "魔法金属制成的护甲"
+price = 1200
+
+[[equipments.helmet]]
+name = "法师帽"
+type = "helmet"
+atk = 0
+def = 1
+hp = 0
+mp = 10
+description = "增加少量法力上限"
+price = 60
+
+[[equipments.helmet]]
+name = "铁盔"
+type = "helmet"
+atk = 0
+def = 4
+hp = 0
+mp = 0
+description = "保护头部的铁盔"
+price = 180
+
+[[equipments.helmet]]
+name = "贤者之冠"
+type = "helmet"
+atk = 0
+def = 5
+hp = 10
+mp = 30
+description = "大幅提升法力上限和恢复"
+price = 800
+
+[[equipments.accessory]]
+name = "木盾"
+type = "accessory"
+atk = 0
+def = 2
+hp = 0
+mp = 10
+description = "一个简陋的木盾"
+price = 30
+
+[[equipments.accessory]]
+name = "力量指环"
+type = "accessory"
+atk = 3
+def = 0
+hp = 0
+mp = 5
+description = "小幅提升力量和法力"
+price = 150
+
+[[equipments.accessory]]
+name = "守护者护符"
+type = "accessory"
+atk = 0
+def = 5
+hp = 30
+mp = 0
+description = "强大的守护力量"
+price = 600

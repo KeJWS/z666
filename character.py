@@ -236,3 +236,19 @@ class Enemy(Character):
             return random.choice(offensives)
 
         return next((s for s in self.skills if s.mp_cost == 0), Skill("猛击", 1.0, 0, "敌人胡乱攻击", "damage"))
+
+    def clone(self):
+        new_enemy = Enemy(
+            name=self.name,
+            max_hp=self.base_max_hp,
+            max_mp=self.base_max_mp,
+            attack=self.base_attack,
+            defense=self.base_defense,
+            level=self.level,
+            exp_reward=self.exp_reward,
+            gold_reward=self.gold_reward,
+            skills_refs=self.skills[:],
+            drop_table=self.drop_table[:],
+            description=self.description
+        )
+        return new_enemy

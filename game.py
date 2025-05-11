@@ -5,10 +5,11 @@ import sys
 import random
 from pygame.locals import *
 
-from character import StatusEffect, Character, Enemy
+import constants as cs
+from character import StatusEffect, Character
 from game_ui import GameUI, screen
 from colors import *
-from constants import *
+from constants import GameState
 
 # 初始化 pygame
 pygame.init()
@@ -25,11 +26,8 @@ class RPGGame:
         self.gold = 0
         self.battle_turn = "player"
         self.shop_tab = "buy"
-        self.dialogue_text = []
-        self.dialogue_index = 0
         self.message_log = []
         self.scroll_offset_message_log = 0
-        self.log_max_lines = 7
 
         self.scroll_offset_inventory = 0
         self.scroll_offset_shop = 0
@@ -44,7 +42,7 @@ class RPGGame:
         self.all_skills = []
         self.all_items = []
         self.all_equipments = []
-        self.all_enemies_templates = []
+        self.all_enemies = []
         self.all_locations = []
         self.all_shops = []
 
@@ -65,34 +63,12 @@ class RPGGame:
         self.scroll_offset_message_log = max(0, len(self.message_log))
 
     def load_game_data(self):
-        self.all_skills = ALL_SKILLS
-        self.all_items = ALL_ITEMS
-        self.all_equipments = ALL_EQUIPMENTS
-
-        enemy_skills_map = {s.name: s for s in self.all_skills}
-        self.all_enemies_templates = [
-            Enemy("史莱姆", 30, 10, 8, 2, 1, 15, 10,
-                  [enemy_skills_map["普通攻击"]],
-                  [{"item_obj": self.all_items[0], "chance": 0.3}]),
-            Enemy("哥布林", 50, 15, 12, 4, 2, 25, 18,
-                  [enemy_skills_map["普通攻击"], enemy_skills_map["强力一击"]],
-                  [{"item_obj": self.all_items[0], "chance": 0.2}, {"item_obj": self.all_equipments[0], "chance": 0.05}]),
-            Enemy("野狼", 70, 0, 15, 5, 3, 30, 22,
-                  [enemy_skills_map["普通攻击"]],
-                  [{"item_obj": self.all_items[2], "chance": 0.1}]),
-            Enemy("强盗", 100, 20, 18, 4, 5, 50, 40,
-                  [enemy_skills_map["普通攻击"], enemy_skills_map["强力一击"], enemy_skills_map["破甲击"]],
-                  [{"item_obj": self.all_items[1], "chance": 0.2}, {"item_obj": self.all_equipments[4], "chance": 0.08}]),
-            Enemy("森林妖精", 80, 50, 15, 10, 5, 60, 50,
-                  [enemy_skills_map["普通攻击"], enemy_skills_map["火球术"], enemy_skills_map["治疗术"]],
-                  [{"item_obj": self.all_items[3], "chance": 0.15}]),
-            Enemy("石巨人", 250, 0, 30, 20, 7, 150, 100,
-                  [enemy_skills_map["普通攻击"], enemy_skills_map["强力一击"]],
-                  [{"item_obj": self.all_equipments[5], "chance": 0.1}]),
-        ]
-
-        self.all_locations = ALL_LOCATIONS
-        self.all_shops = ALL_SHOPS
+        self.all_skills = cs.ALL_SKILLS
+        self.all_items = cs.ALL_ITEMS
+        self.all_equipments = cs.ALL_EQUIPMENTS
+        self.all_enemies = cs.ALL_ENEMIES
+        self.all_locations = cs.ALL_LOCATIONS
+        self.all_shops = cs.ALL_SHOPS
 
     def start_new_game(self):
         self.setup_initial_player_conditions()
@@ -119,10 +95,10 @@ class RPGGame:
 
         if debug.DEBUG:
             self.gold += 9000
-            self.player.skills.extend(self.all_skills[2:])
-            for item in self.all_items:
+            self.player.skills.extend(cs.game_data["skills"][2:])
+            for item in cs.game_data["items"]:
                 self.player.add_item_to_inventory(item)
-            for equip in self.all_equipments:
+            for equip in cs.game_data["equipments"]:
                 self.player.add_item_to_inventory(equip)
 
     def get_current_location(self):
@@ -134,19 +110,8 @@ class RPGGame:
             self.add_message("这里似乎很安全，没有敌人。")
             return
 
-        template = self.all_enemies_templates[random.choice(loc_data["enemies"])]
-        self.current_enemy = Enemy(
-            name=template.name,
-            max_hp=template.base_max_hp,
-            max_mp=template.base_max_mp,
-            attack=template.base_attack,
-            defense=template.base_defense,
-            level=template.level,
-            exp_reward=template.exp_reward,
-            gold_reward=template.gold_reward,
-            skills_refs=list(template.skills),
-            drop_table=[d.copy() for d in template.drop_table]
-        )
+        template = self.all_enemies[random.choice(loc_data["enemies"])]
+        self.current_enemy = template.clone()
         self.add_message(f"遭遇敌人: {self.current_enemy.name} (等级 {self.current_enemy.level})!")
         self.state = GameState.BATTLE
         self.battle_turn = "player"
@@ -336,7 +301,7 @@ class RPGGame:
             messages.append(f"{target.name} 恢复了 {restored} 点法力值！")
             used = True
         elif effect_type in ("buff_attack", "buff_defense"):
-            status = StatusEffect(f"{item.name}效果", 
+            status = StatusEffect(f"{item.name}", 
                                   "attack_buff" if "attack" in effect_type else "defense_buff", 
                                   val, item.duration, item.description)
             target.add_status_effect(status)

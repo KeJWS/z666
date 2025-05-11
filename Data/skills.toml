@@ -1,0 +1,106 @@
+
+[[skills]]
+name = "普通攻击"
+power_multiplier = 1.0
+mp_cost = 0
+description = "基本攻击"
+type = "damage"
+required_level = 1
+
+[[skills]]
+name = "强力一击"
+power_multiplier = 1.5
+mp_cost = 5
+description = "造成1.5倍伤害"
+type = "damage"
+required_level = 1
+
+[[skills]]
+name = "火球术"
+power_multiplier = 1.2
+mp_cost = 8
+description = "小范围火焰伤害"
+type = "damage"
+status_effect = "燃烧"
+effect_duration = 3
+required_level = 2
+
+[[skills]]
+name = "治疗术"
+power_multiplier = 0
+mp_cost = 10
+description = "恢复少量生命"
+type = "heal"
+effect_value = 50
+target = "self"
+required_level = 3
+
+[[skills]]
+name = "守护祷言"
+power_multiplier = 0
+mp_cost = 12
+description = "提升自身防御3回合"
+type = "buff_self"
+effect_value = 10
+status_effect = "防御提升"
+effect_duration = 3
+required_level = 4
+
+[[skills]]
+name = "雷击"
+power_multiplier = 2.0
+mp_cost = 15
+description = "强力单体雷电伤害"
+type = "damage"
+required_level = 5
+
+[[skills]]
+name = "破甲击"
+power_multiplier = 1.3
+mp_cost = 10
+description = "攻击并降低目标防御2回合"
+type = "debuff_enemy"
+effect_value = 5
+status_effect = "破甲"
+effect_duration = 2
+required_level = 6
+
+[[skills]]
+name = "生命汲取"
+power_multiplier = 1.0
+mp_cost = 18
+description = "吸取伤害50%的生命"
+type = "lifesteal"
+effect_value = 0.5
+required_level = 7
+
+[[skills]]
+name = "寒冰箭"
+power_multiplier = 1.5
+mp_cost = 20
+description = "冰冻攻击，可以降低敌方攻击力"
+type = "debuff_enemy"
+effect_value = 5
+status_effect = "冰冻"
+effect_duration = 2
+required_level = 8
+
+[[skills]]
+name = "群体治疗"
+power_multiplier = 0
+mp_cost = 25
+description = "恢复全队中量生命"
+type = "heal"
+effect_value = 80
+target = "self"
+required_level = 10
+
+[[skills]]
+name = "烈焰风暴"
+power_multiplier = 1.8
+mp_cost = 30
+description = "强力火焰魔法"
+type = "damage"
+status_effect = "燃烧"
+effect_duration = 3
+required_level = 12

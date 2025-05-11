@@ -2,6 +2,7 @@ import debug
 
 import pygame
 import sys
+from pprint import pprint
 from collections import defaultdict
 
 from constants import GameState
@@ -160,7 +161,8 @@ class GameUI:
         self.draw_text(f"金币: {self.game.gold}", FONT_SMALL, BTN_ORANGE, x + 170, y + 90)
 
         for effect in self.game.player.status_effects[:2]:
-            self.draw_text(f"{effect.name}({effect.turns_remaining})", FONT_SMALL, BTN_PURPLE, x + 10, y + 90)
+            self.draw_text(f"{effect.name}({effect.turns_remaining})", FONT_SMALL, BTN_PURPLE, x + 10, y + 80)
+            y += 15
 
     def draw_main_menu(self):
         screen.fill(BG_DARK)
@@ -664,12 +666,20 @@ class GameUI:
                        BTN_GREEN if enemy.hp > enemy.max_hp * 0.3 else BTN_RED_DARK, panel_rect.x + 10, 50)
         self.draw_text(f"MP: {enemy.mp}/{enemy.max_mp}", FONT_SMALL, BTN_BLUE, panel_rect.x + 160, 50)
         self.draw_text(f"ATK: {enemy.attack} DEF: {enemy.defense}", FONT_SMALL, TEXT_FAINT, panel_rect.x + 10, 75)
+        self.draw_text(f"EXP: {enemy.exp_reward}", FONT_SMALL, BTN_PURPLE, panel_rect.x + 160, 75)
+        self.draw_text(f"金币: {enemy.gold_reward}", FONT_SMALL, BTN_ORANGE, panel_rect.x + 160, 100)
 
         # 显示敌人状态效果（最多2个）
         y_offset = 100
         for effect in enemy.status_effects[:2]:
-            self.draw_text(f"{effect.name}({effect.turns_remaining})", FONT_SMALL, BTN_PURPLE, panel_rect.x + 10, y_offset)
+            self.draw_text(f"{effect.name}({effect.turns_remaining})", FONT_SMALL, BTN_PURPLE, panel_rect.x + 10, y_offset - 10)
             y_offset += 15
+
+        pygame.draw.rect(screen, BTN_GRAY_LIGHT, (panel_rect.right - 38, panel_rect.y + 10, 28, 28), 1)
+        if self.draw_button("i", panel_rect.right - 38, panel_rect.y + 10, 28, 28, LIGHT_PANEL, BTN_GRAY, BTN_ORANGE, FONT_SMALL):
+            if self.game.clicked_this_frame:
+                print("\n")
+                pprint(vars(enemy))
 
     def draw_player_actions_panel(self):
         skill_x, skill_y = 20, SCREEN_HEIGHT - 300
